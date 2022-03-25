@@ -23,60 +23,76 @@ namespace autoware {
         LeoVcuDriverNode::LeoVcuDriverNode(const rclcpp::NodeOptions &options)
                 : Node("leo_vcu_driver", options),
 
-                  odom_topic_{"/vehicle/odometry"},
+                // Topics from autoware
+                control_cmd_topic_{"/control/command/control_cmd"},
 
-                  state_report_topic_{"/vehicle/state_report"},
+                gear_cmd_topic_{"/control/command/gear_cmd"},
 
-                  control_command_topic_{"/vehicle/ackermann_vehicle_command"},
+                emergency_cmd_topic_{"/control/command/emergency_cmd"},
 
-                  state_command_topic_{"/vehicle/state_command"},
+                engage_cmd_topic_{"/vehicle/engage"},
+
+                hazard_lights_cmd_topic_{"/control/command/hazard_lights_cmd"},
+
+                turn_indicators_cmd_topic_{"/control/command/turn_indicators_cmd"},
+
+                current_gate_topic_{"/control/current_gate_mode"},
+
+                // Topics to autoware
+                control_mode_topic{"/vehicle/status/control_mode"},
+
+                velocity_status_topic{"/vehicle/status/velocity_status"},
+
+                hazard_lights_status_topic{"/vehicle/status/hazard_lights_status"},
+
+                steering_status_topic{"/vehicle/status/steering_status"},
+
+                gear_status_topic{"/vehicle/status/gear_status"},
+
+                turn_indicators_status_topic{"/vehicle/status/turn_indicators_status"},
+
 
 //                  debug_str_topic_{"/vehicle/debug_str"},
 
-                  gear_report_topic_{"/vehicle/gear_report"},
-
-                  isuzu_odom_topic_{"/isuzu/odom"},
-
-                  vehicle_kinematic_state_topic_{"/vehicle/vehicle_kinematic_state"},
-
-                  last_control_cmd_{},
-
-                  last_state_cmd_{},
 
                   serial_name_{"/dev/ttyLLC"},
 
                   serial(serial_name_, 115200),
 
-                  pub_veh_odom_{
-                          create_publisher<VehicleOdometry>(odom_topic_, rclcpp::QoS{10}, PubAllocT{})},
-
-                  pub_veh_state_report_{
-                          create_publisher<VehicleStateReport>(state_report_topic_, rclcpp::QoS{10}, PubAllocT{})},
-
-                  gear_report_pub{
-                          create_publisher<GearReport>(gear_report_topic_, rclcpp::QoS{10}, PubAllocT{})},
-
-                  kinematic_state_pub_{
-                          create_publisher<VehicleKinematicState>(vehicle_kinematic_state_topic_, rclcpp::QoS{10},
-                                                                  PubAllocT{})},
 
 //                  pub_debug_str_{
 //                          create_publisher<std_msgs::msg::String>(debug_str_topic_, rclcpp::QoS{10}, PubAllocT{})},
-
-                  sub_veh_cmd_{create_subscription<AckermannControlCommand>(
-                          control_command_topic_, rclcpp::QoS{10},
-                          [this](const AckermannControlCommand::SharedPtr msg) { ctrl_cmd_callback(msg); },
+//Subs
+                  control_cmd_sub_{create_subscription<autoware_auto_control_msgs::msg::AckermannControlCommand>(
+                          control_cmd_topic_, rclcpp::QoS{10},
+                          [this](const autoware_auto_control_msgs::msg::AckermannControlCommand::SharedPtr msg) { ctrl_cmd_callback(msg); },
                           SubAllocT{})},
 
-                  sub_veh_state_cmd_{create_subscription<VehicleStateCommand>(
-                          state_command_topic_, rclcpp::QoS{10},
-                          [this](const VehicleStateCommand::SharedPtr msg) { state_cmd_callback(msg); },
+                  gear_cmd_sub_{create_subscription<autoware_auto_vehicle_msgs::msg::GearCommand>(
+                          gear_cmd_topic_, rclcpp::QoS{10},
+                          [this](const autoware_auto_vehicle_msgs::msg::GearCommand::SharedPtr msg) { gear_cmd_callback(msg); },
                           SubAllocT{})},
 
-                  sub_isuzu_odom_{create_subscription<nav_msgs::msg::Odometry>(
-                          isuzu_odom_topic_, rclcpp::QoS{10},
-                          [this](const nav_msgs::msg::Odometry::SharedPtr msg) { isuzu_odom_callback(msg); },
+                  turn_indicators_cmd_sub_{create_subscription<autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand>(
+                          turn_indicators_cmd_topic_, rclcpp::QoS{10},
+                          [this](const autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::SharedPtr msg) { turn_indicators_cmd_callback(msg); },
                           SubAllocT{})},
+
+                  hazard_lights_cmd_sub_{create_subscription<autoware_auto_vehicle_msgs::msg::HazardLightsCommand>(
+                          hazard_lights_cmd_topic_, rclcpp::QoS{10},
+                          [this](const autoware_auto_vehicle_msgs::msg::HazardLightsCommand::SharedPtr msg) { hazard_lights_cmd_callback(msg); },
+                          SubAllocT{})},
+
+                  engage_cmd_sub_{create_subscription<autoware_auto_vehicle_msgs::msg::Engage>(
+                          engage_cmd_topic_, rclcpp::QoS{10},
+                          [this](const autoware_auto_vehicle_msgs::msg::Engage::SharedPtr msg) {engage_cmd_callback(msg); },
+                          SubAllocT{})},
+
+                  emergency_sub_{create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
+                          emergency_cmd_topic_, rclcpp::QoS{10},
+                          [this](const tier4_vehicle_msgs::msg::VehicleEmergencyStamped::SharedPtr msg) {emergency_cmd_callback(msg); },
+                          SubAllocT{})},
+
 
                   tim_data_sender_{this->create_wall_timer(10ms, [this] { data_send_callback(); })} {
 

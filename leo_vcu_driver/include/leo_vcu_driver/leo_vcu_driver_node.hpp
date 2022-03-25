@@ -21,14 +21,24 @@
 #ifndef LEO_VCU_DRIVER__LEO_VCU_DRIVER_NODE_HPP_
 #define LEO_VCU_DRIVER__LEO_VCU_DRIVER_NODE_HPP_
 
-#include <autoware_auto_vehicle_msgs/msg/vehicle_odometry.hpp>
 #include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
-#include <autoware_auto_vehicle_msgs/msg/vehicle_kinematic_state.hpp>
-#include <autoware_auto_vehicle_msgs/msg/vehicle_state_report.hpp>
-#include <autoware_auto_vehicle_msgs/msg/vehicle_state_command.hpp>
+#include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/engage.hpp>
+#include <autoware_auto_vehicle_msgs/msg/gear_command.hpp>
 #include <autoware_auto_vehicle_msgs/msg/gear_report.hpp>
-#include <autoware_auto_vehicle_msgs/msg/vehicle_kinematic_state.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include <autoware_auto_vehicle_msgs/msg/hazard_lights_command.hpp>
+#include <autoware_auto_vehicle_msgs/msg/hazard_lights_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/steering_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/turn_indicators_command.hpp>
+#include <autoware_auto_vehicle_msgs/msg/turn_indicators_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/velocity_report.hpp>
+
+#include <tier4_vehicle_msgs/msg/actuation_command_stamped.hpp>
+#include <tier4_vehicle_msgs/msg/actuation_status_stamped.hpp>
+#include <tier4_vehicle_msgs/msg/steering_wheel_status_stamped.hpp>
+#include <tier4_vehicle_msgs/msg/vehicle_emergency_stamped.hpp>
+#include <tier4_control_msgs/msg/gate_mode.hpp>
+
 
 #include <std_msgs/msg/string.hpp>
 
@@ -38,15 +48,6 @@
 #include <leo_vcu_driver/vehicle_interface.h>
 
 #include <rclcpp/rclcpp.hpp>
-
-using autoware_auto_vehicle_msgs::msg::VehicleOdometry;
-using autoware_auto_control_msgs::msg::AckermannControlCommand;
-using autoware_auto_vehicle_msgs::msg::VehicleStateReport;
-using autoware_auto_vehicle_msgs::msg::VehicleStateCommand;
-using autoware_auto_vehicle_msgs::msg::GearReport;
-using autoware_auto_vehicle_msgs::msg::VehicleKinematicState;
-
-
 
 namespace autoware {
     namespace leo_vcu_driver {
@@ -71,19 +72,20 @@ namespace autoware {
 /**
  * @brief It is callback function which takes data from "/vehicle/vehicle_command" topic in Autoware.Auto.
  */
-            void ctrl_cmd_callback(const AckermannControlCommand::SharedPtr& msg);
+            void ctrl_cmd_callback(const autoware_auto_control_msgs::msg::AckermannControlCommand::SharedPtr& msg);
 /**
  * @brief It is callback function which takes data from "/vehicle/state_command" topic in Autoware.Auto.
  */
-            void state_cmd_callback(const VehicleStateCommand::SharedPtr& msg);
+            void turn_indicators_cmd_callback(const autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::SharedPtr& msg);
 /**
  * @brief It is callback function which takes data from "/isuzu/odom" topic from ISUZU.
  */
-            void isuzu_odom_callback(const nav_msgs::msg::Odometry ::SharedPtr& msg);
+            void hazard_lights_cmd_callback(const autoware_auto_vehicle_msgs::msg::HazardLightsCommand::SharedPtr& msg);
+            void gear_cmd_callback(const autoware_auto_vehicle_msgs::msg::GearCommand::SharedPtr& msg);
+            void engage_cmd_callback(const autoware_auto_vehicle_msgs::msg::Engage::SharedPtr& msg);
+            void emergency_cmd_callback(const tier4_vehicle_msgs::msg::VehicleEmergencyStamped::SharedPtr& msg);
+            void gate_mode_cmd_callback(const tier4_control_msgs::msg::GateMode::SharedPtr& msg);
 
-//            void publish_vehicle_odom(const VehicleOdometry &state) const;
-//
-//            void publish_state_report(const VehicleStateReport &state_report) const;
 /**
  * @brief It sends data from interface to low level controller.
  */
@@ -116,36 +118,72 @@ namespace autoware {
 
             std::vector<uint8_t> receive_buffer_;
 
-            const std::string odom_topic_;
-            const std::string state_report_topic_;
-            const std::string debug_str_topic_;
-            const std::string control_command_topic_;
-            const std::string state_command_topic_;
-            const std::string gear_report_topic_;
-            const std::string isuzu_odom_topic_;
-            const std::string vehicle_kinematic_state_topic_;
+            // Topics from autoware
+            const std::string control_cmd_topic_;
+            const std::string gear_cmd_topic_;
+            const std::string emergency_cmd_topic_;
+            const std::string engage_cmd_topic_;
+            const std::string hazard_lights_cmd_topic_;
+            const std::string turn_indicators_cmd_topic_;
+            const std::string current_gate_topic_;
 
+            /* input values */
+            autoware_auto_control_msgs::msg::AckermannControlCommand::ConstSharedPtr control_cmd_ptr_;
+            autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ConstSharedPtr turn_indicators_cmd_ptr_;
+            autoware_auto_vehicle_msgs::msg::HazardLightsCommand::ConstSharedPtr hazard_lights_cmd_ptr_;
+            autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr gear_cmd_ptr_;
+            autoware_auto_vehicle_msgs::msg::Engage::ConstSharedPtr engage_cmd_ptr;
+            tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr emergency_cmd_ptr;
+            tier4_control_msgs::msg::GateMode::ConstSharedPtr gate_mode_cmd_ptr;
+
+
+            // Topics to autoware
+            const std::string control_mode_topic;
+            const std::string velocity_status_topic;
+            const std::string hazard_lights_status_topic;
+            const std::string steering_status_topic;
+            const std::string gear_status_topic;
+            const std::string turn_indicators_status_topic;
+
+
+            const std::string debug_str_topic_;
 
             float steering_angle_converted = 0;
             float steering_wheel_angle_converted = 0;
 
-            nav_msgs::msg::Odometry isuzu_odom;
-            GearReport gear_report;
-            AckermannControlCommand last_control_cmd_;
-            VehicleStateCommand last_state_cmd_;
-            VehicleKinematicState vehicle_kinematic_state_;
 
             const std::string serial_name_;
             CallbackAsyncSerial serial;
 
-            rclcpp::Publisher<VehicleOdometry>::SharedPtr pub_veh_odom_;
-            rclcpp::Publisher<VehicleStateReport>::SharedPtr pub_veh_state_report_;
-            rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_debug_str_;
-            rclcpp::Publisher<GearReport>::SharedPtr gear_report_pub;
-            rclcpp::Publisher<VehicleKinematicState>::SharedPtr kinematic_state_pub_;
-            rclcpp::Subscription<AckermannControlCommand>::SharedPtr sub_veh_cmd_;
-            rclcpp::Subscription<VehicleStateCommand>::SharedPtr sub_veh_state_cmd_;
-            rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_isuzu_odom_;
+            /* subscribers */
+
+            // From Autoware
+            rclcpp::Subscription<autoware_auto_control_msgs::msg::AckermannControlCommand>::SharedPtr
+                    control_cmd_sub_;
+            rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::GearCommand>::SharedPtr gear_cmd_sub_;
+            rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand>::SharedPtr
+                    turn_indicators_cmd_sub_;
+            rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::HazardLightsCommand>::SharedPtr
+                    hazard_lights_cmd_sub_;
+            rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::Engage>::SharedPtr engage_cmd_sub_;
+            rclcpp::Subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>::SharedPtr emergency_sub_;
+
+            /* publishers */
+
+            // To Autoware
+            rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::ControlModeReport>::SharedPtr
+                    control_mode_pub_;
+            rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::VelocityReport>::SharedPtr vehicle_twist_pub_;
+            rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::SteeringReport>::SharedPtr
+                    steering_status_pub_;
+            rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::GearReport>::SharedPtr gear_status_pub_;
+            rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::TurnIndicatorsReport>::SharedPtr
+                    turn_indicators_status_pub_;
+            rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::HazardLightsReport>::SharedPtr
+                    hazard_lights_status_pub_;
+            rclcpp::Publisher<tier4_vehicle_msgs::msg::SteeringWheelStatusStamped>::SharedPtr steering_wheel_status_pub_;
+
+
             rclcpp::TimerBase::SharedPtr tim_data_sender_;
 
         };
