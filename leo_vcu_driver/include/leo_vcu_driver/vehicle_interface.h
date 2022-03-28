@@ -21,8 +21,7 @@
 #include <cstdint>
 #include "checksum.h"
 
-namespace autoware {
-    namespace leo_vcu_driver {
+
         using namespace std;
 
         const uint8_t comp_to_llc_msg_frame_id{16U};
@@ -130,7 +129,5 @@ namespace autoware {
             uint8_t eof_id2;
         };
 
-    }// namespace leo_vcu_driver
-} // namespace autoware
 
 #endif //BUILD_VEHICLE_INTERFACE_H

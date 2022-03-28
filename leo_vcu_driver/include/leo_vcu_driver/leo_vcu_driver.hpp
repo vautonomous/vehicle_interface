@@ -21,39 +21,160 @@
 #ifndef LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
 #define LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
 
-
-
-
 #include <leo_vcu_driver/visibility_control.hpp>
+#include <vehicle_info_util/vehicle_info_util.hpp>
+
+#include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
+#include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/engage.hpp>
+#include <autoware_auto_vehicle_msgs/msg/gear_command.hpp>
+#include <autoware_auto_vehicle_msgs/msg/gear_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/hazard_lights_command.hpp>
+#include <autoware_auto_vehicle_msgs/msg/hazard_lights_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/steering_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/turn_indicators_command.hpp>
+#include <autoware_auto_vehicle_msgs/msg/turn_indicators_report.hpp>
+#include <autoware_auto_vehicle_msgs/msg/velocity_report.hpp>
+
+#include <tier4_vehicle_msgs/msg/actuation_command_stamped.hpp>
+#include <tier4_vehicle_msgs/msg/actuation_status_stamped.hpp>
+#include <tier4_vehicle_msgs/msg/steering_wheel_status_stamped.hpp>
+#include <tier4_vehicle_msgs/msg/vehicle_emergency_stamped.hpp>
+#include <tier4_control_msgs/msg/gate_mode.hpp>
 
 
-#include <cstdint>
-#include <chrono>
-#include <functional>
-#include <memory>
-#include <string>
-#include <atomic>
-#include <ctime>
-#include <vector>
+#include <std_msgs/msg/string.hpp>
+
+#include <leo_vcu_driver/leo_vcu_driver.hpp>
+#include <leo_vcu_driver/AsyncSerial.h>
+#include <leo_vcu_driver/checksum.h>
+#include <leo_vcu_driver/vehicle_interface.h>
 #include <experimental/optional>
-
 #include <rclcpp/rclcpp.hpp>
 
 
 
-namespace autoware {
+class  LeoVcuDriver : public rclcpp::Node
+{
+public:
+    LeoVcuDriver();
+    ~LeoVcuDriver() override {
+        serial.close();
+    }
 
-    namespace leo_vcu_driver {
+/**
+ * @brief It is callback function which takes data from "/vehicle/vehicle_command" topic in Autoware.Auto.
+ */
+    void ctrl_cmd_callback(const autoware_auto_control_msgs::msg::AckermannControlCommand::ConstSharedPtr msg);
+/**
+ * @brief It is callback function which takes data from "/vehicle/state_command" topic in Autoware.Auto.
+ */
+    void turn_indicators_cmd_callback(const autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ConstSharedPtr msg);
+/**
+ * @brief It is callback function which takes data from "/isuzu/odom" topic from ISUZU.
+ */
+    void hazard_lights_cmd_callback(const autoware_auto_vehicle_msgs::msg::HazardLightsCommand::ConstSharedPtr msg);
+    void gear_cmd_callback(const autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr msg);
+    void engage_cmd_callback(const autoware_auto_vehicle_msgs::msg::Engage::ConstSharedPtr msg);
+    void emergency_cmd_callback(const tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr msg);
+    void gate_mode_cmd_callback(const tier4_control_msgs::msg::GateMode::ConstSharedPtr msg);
 
-        class LEO_VCU_DRIVER_PUBLIC LeoVcuDriver {
-        public:
+/**
+ * @brief It sends data from interface to low level controller.
+ */
+    void llc_publisher();
+/**
+ * @brief It takes data from interface to low level controller.
+ */
+    void serial_receive_callback(const char *data, unsigned int len);
+/**
+ * @brief It converts the steering angle to steering wheel angle.
+ * Steering angle means "Teker açısı" and which is radian.
+ * Steering wheel angle means "Direksiyon açısı" and which is degree.
+ */
+    void sa_to_swa(float input);
+/**
+ * @brief It converts the steering wheel angle to steering angle.
+ * Steering angle means "Teker açısı" and which is radian.
+ * Steering wheel angle means "Direksiyon açısı" and which is degree.
+ */
+    void swa_to_sa(float input);
 
-        private:
+private:
+    std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(const char *data, unsigned int len);
 
-        };
+    static std::vector<char>
+    pack_serial_data(const CompToLlcData &data);
+
+    std::vector<uint8_t> receive_buffer_;
 
 
-    }  // namespace leo_vcu_driver
-}  // namespace autoware
+    /* input values */
+    autoware_auto_control_msgs::msg::AckermannControlCommand::ConstSharedPtr control_cmd_ptr_;
+    autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ConstSharedPtr turn_indicators_cmd_ptr_;
+    autoware_auto_vehicle_msgs::msg::HazardLightsCommand::ConstSharedPtr hazard_lights_cmd_ptr_;
+    autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr gear_cmd_ptr_;
+    tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr emergency_cmd_ptr;
+    tier4_control_msgs::msg::GateMode::ConstSharedPtr gate_mode_cmd_ptr;
+
+    /* Variables */
+    bool engage_cmd_{false};
+    bool is_emergency_{false};
+    rclcpp::Time control_command_received_time_;
+    rclcpp::Time last_shift_inout_matched_time_;
+
+    char *debug_str_last;
+    float current_velocity;
+    float current_steering_wheel_angle;
+    float current_steering_tire_angle;
+    float steering_angle_converted = 0;
+    float steering_wheel_angle_converted = 0;
+
+
+    const std::string serial_name_;
+    CallbackAsyncSerial serial;
+
+    /* subscribers */
+
+    // From Autoware
+    rclcpp::Subscription<autoware_auto_control_msgs::msg::AckermannControlCommand>::SharedPtr
+            control_cmd_sub_;
+    rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::GearCommand>::SharedPtr gear_cmd_sub_;
+    rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand>::SharedPtr
+            turn_indicators_cmd_sub_;
+    rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::HazardLightsCommand>::SharedPtr
+            hazard_lights_cmd_sub_;
+    rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::Engage>::SharedPtr engage_cmd_sub_;
+    rclcpp::Subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>::SharedPtr emergency_sub_;
+    rclcpp::Subscription<tier4_vehicle_msgs::msg::tier4_control_msgs::msg::GateMode>::ConstSharedPtr gate_mode_sub_;
+
+    /* publishers */
+
+    // To Autoware
+    rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::ControlModeReport>::SharedPtr
+            control_mode_pub_;
+    rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::VelocityReport>::SharedPtr vehicle_twist_pub_;
+    rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::SteeringReport>::SharedPtr
+            steering_status_pub_;
+    rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::GearReport>::SharedPtr gear_status_pub_;
+    rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::TurnIndicatorsReport>::SharedPtr
+            turn_indicators_status_pub_;
+    rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::HazardLightsReport>::SharedPtr
+            hazard_lights_status_pub_;
+    rclcpp::Publisher<tier4_vehicle_msgs::msg::SteeringWheelStatusStamped>::SharedPtr steering_wheel_status_pub_;
+
+
+    rclcpp::TimerBase::SharedPtr tim_data_sender_;
+
+    /* ros params */
+    vehicle_info_util::VehicleInfo vehicle_info_;
+    std::string base_frame_id_;
+    double loop_rate_;                 // [Hz]
+    double wheel_base_;                // [m]
+
+};
+
+
+
 
 #endif  // LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
