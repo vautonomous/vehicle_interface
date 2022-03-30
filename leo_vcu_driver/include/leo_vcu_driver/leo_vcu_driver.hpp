@@ -45,7 +45,6 @@
 
 #include <std_msgs/msg/string.hpp>
 
-#include <leo_vcu_driver/leo_vcu_driver.hpp>
 #include <leo_vcu_driver/AsyncSerial.h>
 #include <leo_vcu_driver/checksum.h>
 #include <leo_vcu_driver/vehicle_interface.h>
@@ -125,23 +124,23 @@ private:
     /* Variables */
     rclcpp::Time control_command_received_time_;
     rclcpp::Time last_shift_inout_matched_time_;
+
     // To LLC
     bool engage_cmd_{false};
     bool is_emergency_{false};
-    double acceleration_cmd_;
+    double acceleration_cmd_{};
     float steering_wheel_angle_cmd = 0;
     float steering_wheel_angle_rate_cmd = 0;
-    int current_gear;
+    int current_gear{};
 
 
-    char *debug_str_last;
-    float current_velocity;
-    float current_steering_wheel_angle;
-    float current_steering_tire_angle;
-    float steering_wheel_angle_cmd = 0;
-    float steering_wheel_angle_rate_cmd = 0;
+    char *debug_str_last{};
+    float current_velocity{};
+    float current_steering_wheel_angle{};
+    float current_steering_tire_angle{};
+
     float steering_tire_angle_cmd = 0;
-    float velocity_cmd;
+    float velocity_cmd{};
     bool is_llc_enabled = false;
 
     const std::string serial_name_;
@@ -159,7 +158,7 @@ private:
             hazard_lights_cmd_sub_;
     rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::Engage>::SharedPtr engage_cmd_sub_;
     rclcpp::Subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>::SharedPtr emergency_sub_;
-    rclcpp::Subscription<tier4_vehicle_msgs::msg::tier4_control_msgs::msg::GateMode>::ConstSharedPtr gate_mode_sub_;
+    rclcpp::Subscription<tier4_control_msgs::msg::GateMode>::ConstSharedPtr gate_mode_sub_;
 
     /* publishers */
 
@@ -182,13 +181,9 @@ private:
     /* ros params */
     vehicle_info_util::VehicleInfo vehicle_info_;
     std::string base_frame_id_;
-    double loop_rate_;                 // [Hz]
-    double wheel_base_;                // [m]
-    int command_timeout_ms_;  // vehicle_cmd timeout [ms]
+    double loop_rate_{};                 // [Hz]
+    double wheel_base_{};                // [m]
+    int command_timeout_ms_{};  // vehicle_cmd timeout [ms]
 
 };
-
-
-
-
 #endif  // LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
