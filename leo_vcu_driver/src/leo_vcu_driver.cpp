@@ -88,7 +88,7 @@ void LeoVcuDriver::ctrl_cmd_callback(const autoware_auto_control_msgs::msg::Acke
 
 void LeoVcuDriver::emergency_cmd_callback(const tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr msg)
 {
-    is_emergency_ = msg->emergency;
+    emergency_cmd_ptr = msg;
 }
 
 void LeoVcuDriver::gear_cmd_callback(const autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr msg)
@@ -130,11 +130,11 @@ void LeoVcuDriver::serial_receive_callback(const char *data, unsigned int len)
         debug_str_last = received_data->state_report.debugstr;
         RCLCPP_INFO(this->get_logger(), "%s", debug_str_last);
     }
-    current_velocity = received_data->vehicle_odometry.velocity_mps;
-    current_steering_wheel_angle = received_data->vehicle_odometry.front_wheel_angle_rad; // Steering wheel angle feedback from LLC
-    swa_to_sa(current_steering_wheel_angle); // Calculates current_steering_tire_angle
+    this->current_velocity = received_data->vehicle_odometry.velocity_mps;
+    this->current_steering_wheel_angle = received_data->vehicle_odometry.front_wheel_angle_rad; // Steering wheel angle feedback from LLC
+    swa_to_sa(this->current_steering_wheel_angle); // Calculates current_steering_tire_angle
     std_msgs::msg::Header header;
-    header.frame_id = base_frame_id_;
+    header.frame_id = this->base_frame_id_;
     header.stamp = get_clock()->now();
 
     /* publish current steering tire status */
@@ -235,7 +235,7 @@ std::experimental::optional<LlcToCompData> LeoVcuDriver::find_llc_to_comp_msg(co
     return std::experimental::nullopt;
 }
 
-void LeoVcuDriver::sa_to_swa(float input) { // rad input degree output, maybe constants needs re-calculation
+float LeoVcuDriver::sa_to_swa(float input) { // rad input degree output, maybe constants needs re-calculation
     // TODO: If input or output is out of boundry, what we will do?
     const long double a0 = 31.199461665454701533044340519L;
     const long double a1 = 188.36170978503590077938134L;
@@ -243,34 +243,21 @@ void LeoVcuDriver::sa_to_swa(float input) { // rad input degree output, maybe co
     const long double a3 = -33.453398194869886816L;
     const long double a4 = 832.269397717359360226L;
     const long double a5 = 0.371560022468346L;
-    const long double low_input_boundary = -0.7494655984494486291955L;
-    const long double high_input_boundary = 0.69883410378631689642371L;
-    const double low_output_boundary = -750;
-    const double high_output_boundary = 750;
+//    const long double low_input_boundary = -0.7494655984494486291955L;
+//    const long double high_input_boundary = 0.69883410378631689642371L;
+//    const double low_output_boundary = -750;
+//    const double high_output_boundary = 750;
 
-    if (static_cast<long double>(input) > high_input_boundary) {
-        input = static_cast<float>(high_input_boundary);
-        //RCLCPP_INFO(this->get_logger(), "Input: Steering Angle is out of boundaries");
-    } else if (static_cast<long double>(input) < low_input_boundary) {
-        input = static_cast<float>(low_input_boundary);
-        //RCLCPP_INFO(this->get_logger(), "Input: Steering Angle is out of boundaries");
-    }
 
-    long double temp = (a0 * (pow(static_cast<long double>(input), 5)) +
+    auto output =static_cast<float>(a0 * (pow(static_cast<long double>(input), 5)) +
                         a1 * (pow(static_cast<long double>(input), 4)) +
                         a2 * (pow(static_cast<long double>(input), 3)) +
                         a3 * (pow(static_cast<long double>(input), 2)) +
                         a4 * static_cast<long double>(input) + a5);
-
-    if (temp <= static_cast<long double>(high_output_boundary) &&
-        temp >= static_cast<long double>(low_output_boundary)) {
-        steering_wheel_angle_converted = static_cast<float>(temp);
-    } else {
-        RCLCPP_INFO(this->get_logger(), "Output: Steering Wheel Angle is out of boundaries");
-    }
+    return output;
 }
 
-void LeoVcuDriver::swa_to_sa(float input) { // degree input rad output, maybe constants needs re-calculation
+float LeoVcuDriver::swa_to_sa(float input) { // degree input rad output, maybe constants needs re-calculation
     // TODO: If input or output is out of boundry, what we will do?
     const long double a0 = 0.0000000000000003633366321943L;
     const long double a1 = -0.000000000000085484279566027149L;
@@ -278,28 +265,73 @@ void LeoVcuDriver::swa_to_sa(float input) { // degree input rad output, maybe co
     const long double a3 = -0.000000001019639103513L;
     const long double a4 = 0.00119229890869585713718L;
     const long double a5 = 0.0007330044078284527L;
-    const long double low_output_boundary = -0.7494655984494486291955L;
-    const long double high_output_boundary = 0.69883410378631689642371L;
-    const double low_input_boundary = -750;
-    const double high_input_boundary = 750;
+//    const long double low_output_boundary = -0.7494655984494486291955L;
+//    const long double high_output_boundary = 0.69883410378631689642371L;
+//    const double low_input_boundary = -750;
+//    const double high_input_boundary = 750;
 
-    if (static_cast<double>(input) > high_input_boundary) {
-        input = static_cast<float>(high_input_boundary);
-        RCLCPP_INFO(this->get_logger(), "Input: Steering Wheel Angle is out of boundaries");
-    } else if (static_cast<double>(input) < low_input_boundary) {
-        input = static_cast<float>(low_input_boundary);
-        RCLCPP_INFO(this->get_logger(), "Input: Steering Wheel Angle is out of boundaries");
-    }
-
-    long double temp = (a0 * (pow(static_cast<long double>(input), 5)) +
+    auto output = static_cast<float>(a0 * (pow(static_cast<long double>(input), 5)) +
                         a1 * (pow(static_cast<long double>(input), 4)) +
                         a2 * (pow(static_cast<long double>(input), 3)) +
                         a3 * (pow(static_cast<long double>(input), 2)) +
                         a4 * static_cast<long double>(input) + a5);
+    return output;
+}
 
-    if (temp <= high_output_boundary && temp >= low_output_boundary) {
-        current_steering_tire_angle = static_cast<float>(temp);
-    } else {
-        RCLCPP_INFO(this->get_logger(), "Output: Steering Angle is out of boundaries");
+void LeoVcuDriver::llc_publisher()
+{
+    const rclcpp::Time current_time = get_clock()->now();
+
+    /* check emergency and timeout */
+
+    const double control_cmd_delta_time_ms =
+            (current_time - control_command_received_time_).seconds() * 1000.0;
+    bool timeouted = false;
+    const int t_out = command_timeout_ms_;
+    if (t_out >= 0 && control_cmd_delta_time_ms > t_out) {
+        timeouted = true;
     }
+    if (emergency_cmd_ptr->emergency || timeouted) {
+        RCLCPP_ERROR(
+                get_logger(), "Emergency Stopping, emergency = %d, timeouted = %d", emergency_cmd_ptr->emergency, timeouted);
+        // desired_throttle = 0.0;
+        // desired_brake = emergency_brake_; add emergency command!
+    }
+    // Calculate the desired wheel angle and desired wheel angle rate
+    steering_wheel_angle_cmd = sa_to_swa(control_cmd_ptr_->lateral.steering_tire_angle);
+    steering_wheel_angle_rate_cmd = sa_to_swa(control_cmd_ptr_->lateral.steering_tire_angle
+            + control_cmd_ptr_->lateral.steering_tire_rotation_rate) - steering_wheel_angle_cmd; // calculate the rate include rate of ctrl output and publisher rate
+
+    /* check shift change */
+
+    if (std::fabs(current_velocity) < 0.1) {  // velocity is low -> the shift can be changed
+        if (current_gear != gear_cmd_ptr_->command) {  // need shift
+//            // change.
+//            desired_throttle = 0.0;
+//            desired_brake = brake_for_shift_trans;  // set brake to change the shift
+//            desired_shift = toPacmodShiftCmd(*gear_cmd_ptr_);
+//            RCLCPP_DEBUG(
+//                    get_logger(), "Doing shift change. current = %d, desired = %d. set brake_cmd to %f",
+//                    gear_cmd_rpt_ptr_->output, toPacmodShiftCmd(*gear_cmd_ptr_), desired_brake);
+        }
+    }
+
+}
+
+int LeoVcuDriver::toLLCTurnCommand()
+{
+    using autoware_auto_vehicle_msgs::msg::HazardLightsCommand;
+    using autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand;
+
+    // NOTE: hazard lights command has a highest priority here.
+    if (hazard_lights_cmd_ptr_->command == HazardLightsCommand::ENABLE) {
+        return -2;
+    }
+    if (turn_indicators_cmd_ptr_->command == TurnIndicatorsCommand::ENABLE_LEFT) {
+        return -1;
+    }
+    if (turn_indicators_cmd_ptr_->command == TurnIndicatorsCommand::ENABLE_RIGHT) {
+        return 1;
+    }
+    return 0;
 }

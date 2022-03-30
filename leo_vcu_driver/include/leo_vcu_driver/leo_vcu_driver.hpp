@@ -92,13 +92,15 @@ public:
  * Steering angle means "Teker açısı" and which is radian.
  * Steering wheel angle means "Direksiyon açısı" and which is degree.
  */
-    void sa_to_swa(float input);
+    float sa_to_swa(float input);
 /**
  * @brief It converts the steering wheel angle to steering angle.
  * Steering angle means "Teker açısı" and which is radian.
  * Steering wheel angle means "Direksiyon açısı" and which is degree.
  */
-    void swa_to_sa(float input);
+    float swa_to_sa(float input);
+
+    int toLLCTurnCommand();
 
 private:
     std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(const char *data, unsigned int len);
@@ -110,6 +112,9 @@ private:
 
 
     /* input values */
+
+    // From Autoware
+
     autoware_auto_control_msgs::msg::AckermannControlCommand::ConstSharedPtr control_cmd_ptr_;
     autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ConstSharedPtr turn_indicators_cmd_ptr_;
     autoware_auto_vehicle_msgs::msg::HazardLightsCommand::ConstSharedPtr hazard_lights_cmd_ptr_;
@@ -118,18 +123,26 @@ private:
     tier4_control_msgs::msg::GateMode::ConstSharedPtr gate_mode_cmd_ptr;
 
     /* Variables */
-    bool engage_cmd_{false};
-    bool is_emergency_{false};
     rclcpp::Time control_command_received_time_;
     rclcpp::Time last_shift_inout_matched_time_;
+    // To LLC
+    bool engage_cmd_{false};
+    bool is_emergency_{false};
+    double acceleration_cmd_;
+    float steering_wheel_angle_cmd = 0;
+    float steering_wheel_angle_rate_cmd = 0;
+    int current_gear;
+
 
     char *debug_str_last;
     float current_velocity;
     float current_steering_wheel_angle;
     float current_steering_tire_angle;
-    float steering_angle_converted = 0;
-    float steering_wheel_angle_converted = 0;
-
+    float steering_wheel_angle_cmd = 0;
+    float steering_wheel_angle_rate_cmd = 0;
+    float steering_tire_angle_cmd = 0;
+    float velocity_cmd;
+    bool is_llc_enabled = false;
 
     const std::string serial_name_;
     CallbackAsyncSerial serial;
@@ -171,6 +184,7 @@ private:
     std::string base_frame_id_;
     double loop_rate_;                 // [Hz]
     double wheel_base_;                // [m]
+    int command_timeout_ms_;  // vehicle_cmd timeout [ms]
 
 };
 
