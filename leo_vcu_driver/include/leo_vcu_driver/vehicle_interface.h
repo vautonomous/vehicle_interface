@@ -30,6 +30,36 @@
         const uint8_t llc_to_comp_msg_frame_id{99U};
         const uint8_t llc_to_comp_msg_eof_id{100U};
 
+        // added for universe
+        struct vehicle_current_state_{
+            autoware_auto_vehicle_msgs::msg::VelocityReport twist;
+            tier4_vehicle_msgs::msg::SteeringWheelStatusStamped steering_wheel_status_msg;
+            autoware_auto_vehicle_msgs::msg::SteeringReport steering_tire_status_msg;
+            autoware_auto_vehicle_msgs::msg::ControlModeReport control_mode_report;
+            autoware_auto_vehicle_msgs::msg::GearReport gear_report_msg;
+            autoware_auto_vehicle_msgs::msg::TurnIndicatorsReport turn_msg;
+            autoware_auto_vehicle_msgs::msg::HazardLightsReport hazard_msg;
+            char *debug_str_last{};
+        };
+struct CompToLlcData_{
+    uint32_t counter_ = {0};
+    float set_long_accel_mps2_{};
+    float set_limit_velocity_mps_{};
+    float set_front_wheel_angle_rad_{};
+    float set_front_wheel_angle_rate_{};
+    uint8_t blinker_{};
+    uint8_t headlight_{1};
+    uint8_t wiper_{1};
+    uint8_t gear_{};
+    uint8_t mode_{};
+    uint8_t hand_brake{0};
+    uint8_t horn{0};
+    uint8_t rsv{0};
+    // Not used data: wiper, headlight, handbrake, and horn
+    // Default values wiper = 1 (Off), headlight = 1 (Off), handbrake = 0 (not used in LLC), horn = 0
+};
+
+
         struct StateReport_ {
             uint8_t fuel;
             uint8_t blinker;

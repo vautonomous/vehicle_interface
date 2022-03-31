@@ -97,16 +97,22 @@ public:
  * Steering angle means "Teker açısı" and which is radian.
  * Steering wheel angle means "Direksiyon açısı" and which is degree.
  */
-    float swa_to_sa(float input);
+    float swa_to_sa(float & input);
 
-    uint8_t gear_adapter_to_autoware(uint8_t input);
-    uint8_t gear_adapter_to_llc(uint8_t input);
+    uint8_t gear_adapter_to_autoware(uint8_t & input);
+    void gear_adapter_to_llc(const uint8_t & input);
+    uint8_t control_mode_adapter_to_autoware(uint8_t & input);
+    void control_mode_adapter_to_llc();
+    void indicator_adapter_to_autoware(uint8_t & input);
+    void indicator_adapter_to_llc();
 
+    void llc_to_autoware_msg_(std::experimental::optional<LlcToCompData> & received_data);
+    void autoware_to_llc_msg_();
 private:
     std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(const char *data, unsigned int len);
 
     static std::vector<char>
-    pack_serial_data(const CompToLlcData &data);
+    pack_serial_data(const CompToLlcData_ &data);
 
     std::vector<uint8_t> receive_buffer_;
 
@@ -121,33 +127,23 @@ private:
     autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr gear_cmd_ptr_;
     tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr emergency_cmd_ptr;
     tier4_control_msgs::msg::GateMode::ConstSharedPtr gate_mode_cmd_ptr;
+    bool engage_cmd_;
 
     /* Variables */
     rclcpp::Time control_command_received_time_;
     rclcpp::Time last_shift_inout_matched_time_;
 
+    // Current state of vehicle
+
+
+    vehicle_current_state_ current_state;
+
     // To LLC
-    bool engage_cmd_{false};
-    uint32_t counter_ = 0;
-    bool is_emergency_{false};
-    double acceleration_cmd_{};
-    float steering_wheel_angle_cmd = 0;
-    float steering_wheel_angle_rate_cmd = 0;
+
     VehicleStateCommand_ desired_state;
+    CompToLlcData_ send_data;
 
 
-
-    uint8_t current_gear{};
-
-
-    char *debug_str_last{};
-    float current_velocity{};
-    float current_steering_wheel_angle{};
-    float current_steering_tire_angle{};
-
-    float steering_tire_angle_cmd = 0;
-    float velocity_cmd{};
-    bool is_llc_enabled = false;
 
     const std::string serial_name_;
     CallbackAsyncSerial serial;
@@ -192,5 +188,6 @@ private:
     int command_timeout_ms_{};  // vehicle_cmd timeout [ms]
     bool reverse_gear_enabled_{false}; // reverse gear enabled or not
     float emergency_stop_acceleration{};
+    float gear_shift_velocity_threshold{}; // m/s
 };
 #endif  // LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
