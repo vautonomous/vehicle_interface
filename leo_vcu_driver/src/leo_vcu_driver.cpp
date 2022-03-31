@@ -132,7 +132,7 @@ void LeoVcuDriver::serial_receive_callback(const char *data, unsigned int len)
     }
     this->current_velocity = received_data->vehicle_odometry.velocity_mps;
     this->current_steering_wheel_angle = received_data->vehicle_odometry.front_wheel_angle_rad; // Steering wheel angle feedback from LLC
-    swa_to_sa(this->current_steering_wheel_angle); // Calculates current_steering_tire_angle
+    current_steering_tire_angle = swa_to_sa(this->current_steering_wheel_angle); // Calculates current_steering_tire_angle
     std_msgs::msg::Header header;
     header.frame_id = this->base_frame_id_;
     header.stamp = get_clock()->now();
@@ -158,17 +158,24 @@ void LeoVcuDriver::serial_receive_callback(const char *data, unsigned int len)
         autoware_auto_vehicle_msgs::msg::ControlModeReport control_mode_msg;
         control_mode_msg.stamp = header.stamp;
 
-        if(!engage_cmd_)
-        { // It is not what we want, change it with feedback from llc
+        if(received_data->state_report.mode == 3) // Handbrake is boolean check when it is true
+        {
             control_mode_msg.mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::DISENGAGED;
         }
-        else
+        // TODO(berkay): Check again here! Maybe we need to change structure!
+        else if (/*gate_mode_cmd_ptr->data == tier4_control_msgs::msg::GateMode::AUTO &&*/ received_data->state_report.mode == 1)
         {
-            if (gate_mode_cmd_ptr->data == tier4_control_msgs::msg::GateMode::AUTO) {
-                control_mode_msg.mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::AUTONOMOUS;
-            } else {
-                control_mode_msg.mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::MANUAL;
-            }
+            control_mode_msg.mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::AUTONOMOUS;
+        }
+        else if (/*gate_mode_cmd_ptr->data == tier4_control_msgs::msg::GateMode::EXTERNAL && */ received_data->state_report.mode == 2)
+        {
+            control_mode_msg.mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::MANUAL;
+        }
+        else if (received_data->state_report.mode == 4) {
+            control_mode_msg.mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::NOT_READY;
+        }
+        else{
+            control_mode_msg.mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::NO_COMMAND;
         }
         control_mode_pub_->publish(control_mode_msg);
     }
@@ -178,27 +185,35 @@ void LeoVcuDriver::serial_receive_callback(const char *data, unsigned int len)
         autoware_auto_vehicle_msgs::msg::VelocityReport twist;
         twist.header = header;
         twist.longitudinal_velocity = current_velocity;                                 // [m/s]
-        twist.heading_rate = current_velocity * std::tan(current_steering_tire_angle) / wheel_base_;  // [rad/s] change them double
+        twist.heading_rate = current_velocity * std::tan(current_steering_tire_angle) / wheel_base_;  // [rad/s]
         vehicle_twist_pub_->publish(twist);
     }
 
     /* publish current shift */
     {
         autoware_auto_vehicle_msgs::msg::GearReport gear_report_msg;
+        current_gear = gear_adapter_to_autoware(received_data->state_report.gear); // Dont use numbers!
         gear_report_msg.stamp = header.stamp;
-        gear_report_msg.report = received_data->state_report.gear;
+        gear_report_msg.report = current_gear;
         gear_status_pub_->publish(gear_report_msg);
     }
     /* publish current turn signal */
     {
         autoware_auto_vehicle_msgs::msg::TurnIndicatorsReport turn_msg;
+        autoware_auto_vehicle_msgs::msg::HazardLightsReport hazard_msg;
+
+        if(received_data->state_report.blinker == 4){
+            hazard_msg.report = autoware_auto_vehicle_msgs::msg::HazardLightsReport::ENABLE;
+            turn_msg.report = autoware_auto_vehicle_msgs::msg::TurnIndicatorsReport::DISABLE;
+        }
+        else {
+            hazard_msg.report = autoware_auto_vehicle_msgs::msg::HazardLightsReport::DISABLE;
+            turn_msg.report = received_data->state_report.blinker;
+        }
         turn_msg.stamp = header.stamp;
-        turn_msg.report = received_data->state_report.blinker; // I dont know It will be changed
         turn_indicators_status_pub_->publish(turn_msg);
 
-        autoware_auto_vehicle_msgs::msg::HazardLightsReport hazard_msg;
         hazard_msg.stamp = header.stamp;
-        hazard_msg.report = received_data->state_report.blinker; // I dont know It will be changed
         hazard_lights_status_pub_->publish(hazard_msg);
     }
 }
@@ -233,6 +248,12 @@ std::experimental::optional<LlcToCompData> LeoVcuDriver::find_llc_to_comp_msg(co
         }
     }
     return std::experimental::nullopt;
+}
+
+std::vector<char> LeoVcuDriver::pack_serial_data(const CompToLlcData &data) {
+    const auto ptr{reinterpret_cast<const uint8_t *>(&data)};
+    std::vector<char> dataVec(ptr, ptr + sizeof data);
+    return dataVec;
 }
 
 float LeoVcuDriver::sa_to_swa(float input) { // rad input degree output, maybe constants needs re-calculation
@@ -281,7 +302,9 @@ float LeoVcuDriver::swa_to_sa(float input) { // degree input rad output, maybe c
 void LeoVcuDriver::llc_publisher()
 {
     const rclcpp::Time current_time = get_clock()->now();
-
+    desired_state.gear = gear_adapter_to_llc(current_gear);
+    desired_state.blinker = 1; // default is off
+    float desired_acceleration = control_cmd_ptr_->longitudinal.acceleration;
     /* check emergency and timeout */
 
     const double control_cmd_delta_time_ms =
@@ -294,8 +317,7 @@ void LeoVcuDriver::llc_publisher()
     if (emergency_cmd_ptr->emergency || timeouted) {
         RCLCPP_ERROR(
                 get_logger(), "Emergency Stopping, emergency = %d, timeouted = %d", emergency_cmd_ptr->emergency, timeouted);
-        // desired_throttle = 0.0;
-        // desired_brake = emergency_brake_; add emergency command!
+        desired_acceleration = emergency_stop_acceleration; // PARAMETER!!
     }
     // Calculate the desired wheel angle and desired wheel angle rate
     steering_wheel_angle_cmd = sa_to_swa(control_cmd_ptr_->lateral.steering_tire_angle);
@@ -304,34 +326,112 @@ void LeoVcuDriver::llc_publisher()
 
     /* check shift change */
 
-    if (std::fabs(current_velocity) < 0.1) {  // velocity is low -> the shift can be changed
-        if (current_gear != gear_cmd_ptr_->command) {  // need shift
-//            // change.
-//            desired_throttle = 0.0;
-//            desired_brake = brake_for_shift_trans;  // set brake to change the shift
-//            desired_shift = toPacmodShiftCmd(*gear_cmd_ptr_);
-//            RCLCPP_DEBUG(
-//                    get_logger(), "Doing shift change. current = %d, desired = %d. set brake_cmd to %f",
-//                    gear_cmd_rpt_ptr_->output, toPacmodShiftCmd(*gear_cmd_ptr_), desired_brake);
+    if (current_gear != gear_cmd_ptr_->command) {  // velocity is low -> the shift can be changed
+        if (std::fabs(current_velocity) < 0.1) {  // need shift
+        // TODO(berkay): check here again!
+        desired_state.gear = gear_adapter_to_llc(gear_cmd_ptr_->command);
+        } else {
+            RCLCPP_WARN(get_logger(), "Gear change is not allowed, current_velocity = %f", current_velocity);
         }
     }
 
+    /* send mode */
+
+    if(!engage_cmd_){
+        desired_state.mode = 3; // DISENGAGED. IT IS PRIOR
+    }
+    else if(gate_mode_cmd_ptr->data == tier4_control_msgs::msg::GateMode::AUTO){
+        desired_state.mode = 1;
+    }
+    else if(gate_mode_cmd_ptr->data == tier4_control_msgs::msg::GateMode::EXTERNAL){
+        desired_state.mode = 2; // MANUAL
+    }
+    else {
+        desired_state.mode =4; // NOT READY
+    }
+
+    // TODO(berkay): Check the handbrake again!
+
+    /* send turn and hazard commad */
+
+    if(hazard_lights_cmd_ptr_->command == autoware_auto_vehicle_msgs::msg::HazardLightsCommand::ENABLE)
+    { // It is prior!
+        desired_state.blinker = 4;
+    }
+    else if(turn_indicators_cmd_ptr_->command == autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ENABLE_LEFT)
+    {
+        desired_state.blinker = 2;
+    }
+    else if(turn_indicators_cmd_ptr_->command == autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ENABLE_RIGHT)
+    {
+        desired_state.blinker = 3;
+    }
+    else
+    {
+        desired_state.blinker = 1;
+    }
+
+    //
+    CompToLlcData send_data(counter_,
+                            desired_acceleration,
+                            control_cmd_ptr_->longitudinal.speed,
+                            steering_wheel_angle_cmd,
+                            steering_wheel_angle_rate_cmd,
+                            desired_state.blinker,
+                            desired_state.headlight,
+                            desired_state.wiper,
+                            desired_state.gear,
+                            desired_state.mode,
+                            desired_state.hand_brake,
+                            desired_state.horn, 0
+    );
+    const auto serialData = pack_serial_data(send_data);
+    serial.write(serialData);
+    counter_++;
 }
 
-int LeoVcuDriver::toLLCTurnCommand()
-{
-    using autoware_auto_vehicle_msgs::msg::HazardLightsCommand;
-    using autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand;
 
-    // NOTE: hazard lights command has a highest priority here.
-    if (hazard_lights_cmd_ptr_->command == HazardLightsCommand::ENABLE) {
-        return -2;
+uint8_t LeoVcuDriver::gear_adapter_to_autoware(uint8_t input){
+    switch (input) {
+        case 1:
+            return 2;
+        case 2:
+            if(reverse_gear_enabled_) {
+                return 20;
+            } else {
+                return 0;
+            }
+        case 3:
+            return 22;
+        case 4:
+            return 23;
+        default:
+            return 0;
     }
-    if (turn_indicators_cmd_ptr_->command == TurnIndicatorsCommand::ENABLE_LEFT) {
-        return -1;
-    }
-    if (turn_indicators_cmd_ptr_->command == TurnIndicatorsCommand::ENABLE_RIGHT) {
+}
+
+uint8_t LeoVcuDriver::gear_adapter_to_llc(uint8_t input){
+
+    if(input <= 19 && input >= 2) {
         return 1;
     }
-    return 0;
+    else if (input == 20){
+        if(reverse_gear_enabled_) {
+            return 2;
+        } else {
+            return 0;
+        }
+    }
+    else if (input == 22){
+        return 3;
+    }
+    else if (input == 23){
+        return 4;
+    }
+    else if (input == 1){
+        return 5;
+    }
+    else{
+        return 0;
+    }
 }

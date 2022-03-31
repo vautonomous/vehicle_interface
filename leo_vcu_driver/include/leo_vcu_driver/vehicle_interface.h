@@ -87,6 +87,7 @@
                                    float set_long_accel_mps2_,
                                    float set_limit_velocity_mps_,
                                    float set_front_wheel_angle_rad_,
+                                   float set_front_wheel_angle_rate_,
                                    uint8_t blinker_,
                                    uint8_t headlight_,
                                    uint8_t wiper_,

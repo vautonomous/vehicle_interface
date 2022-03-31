@@ -99,7 +99,8 @@ public:
  */
     float swa_to_sa(float input);
 
-    int toLLCTurnCommand();
+    uint8_t gear_adapter_to_autoware(uint8_t input);
+    uint8_t gear_adapter_to_llc(uint8_t input);
 
 private:
     std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(const char *data, unsigned int len);
@@ -127,11 +128,16 @@ private:
 
     // To LLC
     bool engage_cmd_{false};
+    uint32_t counter_ = 0;
     bool is_emergency_{false};
     double acceleration_cmd_{};
     float steering_wheel_angle_cmd = 0;
     float steering_wheel_angle_rate_cmd = 0;
-    int current_gear{};
+    VehicleStateCommand_ desired_state;
+
+
+
+    uint8_t current_gear{};
 
 
     char *debug_str_last{};
@@ -182,8 +188,9 @@ private:
     vehicle_info_util::VehicleInfo vehicle_info_;
     std::string base_frame_id_;
     double loop_rate_{};                 // [Hz]
-    double wheel_base_{};                // [m]
+    float wheel_base_{};                // [m]
     int command_timeout_ms_{};  // vehicle_cmd timeout [ms]
-
+    bool reverse_gear_enabled_{false}; // reverse gear enabled or not
+    float emergency_stop_acceleration{};
 };
 #endif  // LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
