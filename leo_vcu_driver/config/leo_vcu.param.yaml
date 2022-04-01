@@ -1,0 +1,8 @@
+/**:
+  ros__parameters:
+    base_frame_id: "base_link"
+    command_timeout_ms: 1000.0
+    loop_rate: 100.0
+    reverse_gear_enabled: false
+    emergency_stop_acceleration: -5.0
+    gear_shift_velocity_threshold: 0.1
