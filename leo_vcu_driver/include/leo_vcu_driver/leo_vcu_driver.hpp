@@ -23,6 +23,8 @@
 
 #include <leo_vcu_driver/visibility_control.hpp>
 #include <vehicle_info_util/vehicle_info_util.hpp>
+#include <vector>
+#include <string>
 
 #include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
 #include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
@@ -167,7 +169,7 @@ private:
   autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr gear_cmd_ptr_;
   tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr emergency_cmd_ptr;
   tier4_control_msgs::msg::GateMode::ConstSharedPtr gate_mode_cmd_ptr;
-  bool engage_cmd_;
+  bool engage_cmd_{0};
 
   /* Variables */
   rclcpp::Time control_command_received_time_;

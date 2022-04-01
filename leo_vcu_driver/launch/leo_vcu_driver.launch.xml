@@ -8,7 +8,7 @@
 
   <!-- pacmod interface -->
   <node pkg="leo_vcu_driver" exec="leo_vcu_driver" name="leo_vcu_driver" output="screen">
-    <param from="$(var pacmod_param_path)"/>
+    <param from="$(var leo_vcu_param_path)"/>
     <param from="$(var vehicle_info_param_file)"/>
   </node>
 

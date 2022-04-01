@@ -20,14 +20,14 @@ Design of package was made with respect to `Autoware.Universe` design architectu
 # Parameters
 
 
-| Name                              | Type   | Description                                  |
-|-----------------------------------|--------|----------------------------------------------|
-| `base_frame_id`                   | string | frame id, default [base_link]                |
-| `command_timeout_ms`              | double | timeout [ms]                                 |
-| `loop_rate`                       | double | loop rate to publish commands to LLC [Hz]    |
-| `reverse_gear_enabled_`           | bool   | enable reverse gear (True means Enabled)     |
-| `emergency_stop_acceleration`     | float  | Acceleration parameter for emergency [m/s^2] |
-| `gear_shift_velocity_threshold`   | float  | The maximum velocity to change gear [m/s]    |
+| Name                            | Type   | Description                                  |
+|---------------------------------|--------|----------------------------------------------|
+| `base_frame_id`                 | string | frame id, default [base_link]                |
+| `command_timeout_ms`            | double | timeout [ms]                                 |
+| `loop_rate`                     | double | loop rate to publish commands to LLC [Hz]    |
+| `reverse_gear_enabled`          | bool   | enable reverse gear (True means Enabled)     |
+| `emergency_stop_acceleration`   | float  | Acceleration parameter for emergency [m/s^2] |
+| `gear_shift_velocity_threshold` | float  | The maximum velocity to change gear [m/s]    |
 
 # Future Improvements
 

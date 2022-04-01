@@ -197,15 +197,15 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
   std::experimental::optional<LlcToCompData> & received_data)
 {
   current_state.steering_wheel_status_msg.data =
-    received_data->vehicle_odometry.front_wheel_angle_rad;                                                // Steering wheel angle feedback from LLC
+    received_data->vehicle_odometry.front_wheel_angle_rad;  // Steering wheel angle fb from LLC
   current_state.twist.longitudinal_velocity = received_data->vehicle_odometry.velocity_mps;
   current_state.steering_tire_status_msg.steering_tire_angle =
     steering_wheel_to_steering_tire_angle(
-      current_state.steering_wheel_status_msg.data);                                                                        // Calculates current_steering_tire_angle
+    current_state.steering_wheel_status_msg.data);    // Calculates current_steering_tire_angle
   current_state.control_mode_report.mode = control_mode_adapter_to_autoware(
     received_data->state_report.mode);
   current_state.twist.heading_rate = current_state.twist.longitudinal_velocity * std::tan(
-    current_state.steering_tire_status_msg.steering_tire_angle) / wheel_base_;                                                                                          // [rad/s]
+    current_state.steering_tire_status_msg.steering_tire_angle) / wheel_base_;  // [rad/s]
   current_state.gear_report_msg.report = gear_adapter_to_autoware(received_data->state_report.gear);
   indicator_adapter_to_autoware(received_data->state_report.blinker);
   current_state.debug_str_last = received_data->state_report.debugstr;
@@ -213,7 +213,8 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
 
 void LeoVcuDriver::autoware_to_llc_msg_adapter()
 {
-  if (current_state.gear_report_msg.report != gear_cmd_ptr_->command) {    // velocity is low -> the shift can be changed
+  if (current_state.gear_report_msg.report != gear_cmd_ptr_->command) {
+    // velocity is low -> the shift can be changed
     if (std::fabs(current_state.twist.longitudinal_velocity) < gear_shift_velocity_threshold) {
       // TODO(berkay): check here again!
       gear_adapter_to_llc(gear_cmd_ptr_->command);
@@ -228,11 +229,10 @@ void LeoVcuDriver::autoware_to_llc_msg_adapter()
   send_data.set_front_wheel_angle_rad_ =
     steering_tire_to_steering_wheel_angle(control_cmd_ptr_->lateral.steering_tire_angle);
   send_data.set_front_wheel_angle_rate_ = steering_tire_to_steering_wheel_angle(
-                                            control_cmd_ptr_->lateral.steering_tire_angle +
-                                            control_cmd_ptr_->lateral.steering_tire_rotation_rate) -
+    control_cmd_ptr_->lateral.steering_tire_angle +
+    control_cmd_ptr_->lateral.steering_tire_rotation_rate) -
     send_data.set_front_wheel_angle_rad_;
   control_mode_adapter_to_llc();
-
 }
 
 void LeoVcuDriver::control_mode_adapter_to_llc()
@@ -428,7 +428,6 @@ uint8_t LeoVcuDriver::gear_adapter_to_autoware(uint8_t & input)  // TODO(berkay)
 
 void LeoVcuDriver::gear_adapter_to_llc(const uint8_t & input)
 {
-
   if (input <= 19 && input >= 2) {
     send_data.gear_ = 1;
   } else if (input == 20) {
