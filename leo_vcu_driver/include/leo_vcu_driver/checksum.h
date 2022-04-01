@@ -16,7 +16,7 @@
  *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -44,50 +44,53 @@ static bool crc_tab16_init = false;
 static uint16_t crc_tab16[256];
 
 
-inline uint16_t crc_16(const uint8_t *input_str, size_t num_bytes) {
+inline uint16_t crc_16(const uint8_t * input_str, size_t num_bytes)
+{
 
-    static const auto u16_ff{static_cast<uint16_t>(0x00FF)};
+  static const auto u16_ff {static_cast < uint16_t > (0x00FF)};
 
-    if (!crc_tab16_init) init_crc16_tab();
+  if (!crc_tab16_init) {init_crc16_tab();}
 
-    uint16_t crc{0};
-    const uint8_t *ptr{input_str};
-    if (ptr != nullptr) {
-        for (size_t a = 0; a < num_bytes; a++) {
-            crc = static_cast<uint16_t>(crc >> 8) ^
-                  crc_tab16[(crc ^ static_cast<uint16_t>(*ptr++)) & u16_ff];
-        }
+  uint16_t crc {0};
+  const uint8_t * ptr {input_str};
+  if (ptr != nullptr) {
+    for (size_t a = 0; a < num_bytes; a++) {
+      crc = static_cast < uint16_t > (crc >> 8) ^
+        crc_tab16[(crc ^ static_cast < uint16_t > (*ptr++)) & u16_ff];
     }
+  }
 
-    return crc;
+  return crc;
 
 }  /* crc_16 */
 
 
-static void init_crc16_tab() {
+static void init_crc16_tab()
+{
 
-    uint16_t i;
-    uint16_t j;
-    uint16_t crc;
-    uint16_t c;
+  uint16_t i;
+  uint16_t j;
+  uint16_t crc;
+  uint16_t c;
 
-    for (i = 0; i < 256; i++) {
-        static const uint16_t crc_poly_16 = 0xA001;
-        crc = 0;
-        c = i;
+  for (i = 0; i < 256; i++) {
+    static const uint16_t crc_poly_16 = 0xA001;
+    crc = 0;
+    c = i;
 
-        for (j = 0; j < 8; j++) {
+    for (j = 0; j < 8; j++) {
 
-            if ((crc ^ c) & 0x0001) crc = static_cast<uint16_t>(crc >> 1) ^ crc_poly_16;
-            else crc = static_cast<uint16_t>(crc >> 1);
+      if ((crc ^ c) & 0x0001) {crc = static_cast < uint16_t > (crc >> 1) ^ crc_poly_16;} else {
+        crc = static_cast < uint16_t > (crc >> 1);
+      }
 
-            c = static_cast<uint16_t>(c >> 1);
-        }
-
-        crc_tab16[i] = crc;
+      c = static_cast < uint16_t > (c >> 1);
     }
 
-    crc_tab16_init = true;
+    crc_tab16[i] = crc;
+  }
+
+  crc_tab16_init = true;
 
 }  /* init_crc16_tab */
 

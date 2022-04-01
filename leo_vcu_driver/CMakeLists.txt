@@ -50,9 +50,7 @@ set(LEO_VCU_DRIVER_NODE_SRC
         src/leo_vcu_driver_node.cpp
         )
 
-set(LEO_VCU_DRIVER_NODE_HEADERS
-        include/leo_vcu_driver/leo_vcu_driver_node.hpp
-        )
+
 
 # generate component node library
 ament_auto_add_library(${PROJECT_NAME}_node SHARED
@@ -81,4 +79,5 @@ endif ()
 # ament package generation and installing
 ament_auto_package(INSTALL_TO_SHARE
         launch
+        config
         )
