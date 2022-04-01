@@ -15,7 +15,7 @@ Design of package was made with respect to `Autoware.Universe` design architectu
 
 **leo_vcu_driver Flow diagram**
 
-![leo_vcu_driver Flow diagram](https://i.ibb.co/BqJqbZj/Untitled-Diagram-2-drawio-1.png)
+![leo_vcu_driver Flow diagram](https://i.ibb.co/QrVrLNn/Untitled-Diagram-2-drawio-1.png)
 
 # Parameters
 
