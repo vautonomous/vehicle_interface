@@ -37,6 +37,14 @@ LeoVcuDriver::LeoVcuDriver()
     static_cast<float>(declare_parameter("emergency_stop_acceleration", -5.0));
   gear_shift_velocity_threshold =
     static_cast<float>(declare_parameter("gear_shift_velocity_threshold", 0.1));
+  max_steering_wheel_angle =
+    static_cast<float>(declare_parameter("max_steering_wheel_angle", 750.0));
+  min_steering_wheel_angle = static_cast<float>(declare_parameter(
+      "min_steering_wheel_angle",
+      -750.0));
+  max_steering_wheel_angle_rate =
+    static_cast<float>(declare_parameter("max_steering_wheel_angle_rate", 300.0));
+  check_steering_angle_rate = declare_parameter("check_steering_angle_rate", true);
 
   /* Subscribers */
 
@@ -364,7 +372,7 @@ float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float & input)   // de
 
 void LeoVcuDriver::llc_publisher()
 {
-  // TODO(berkay): Check the jerk data is enabled?
+  // TODO(brkay54): Check the jerk data is enabled?
   const rclcpp::Time current_time = get_clock()->now();
   autoware_to_llc_msg_adapter();
   /* check emergency and timeout */
@@ -381,6 +389,28 @@ void LeoVcuDriver::llc_publisher()
       get_logger(), "Emergency Stopping, emergency = %d, timeouted = %d", emergency_cmd_ptr->emergency,
       timeouted);
     send_data.set_long_accel_mps2_ = emergency_stop_acceleration;
+  }
+
+  /* check the steering wheel angle and steering wheel angle rate limits */
+
+  if (send_data.set_front_wheel_angle_rad_ < min_steering_wheel_angle ||
+    send_data.set_front_wheel_angle_rad_ > max_steering_wheel_angle)
+  {
+    send_data.set_front_wheel_angle_rad_ = std::min(
+      max_steering_wheel_angle,
+      std::max(
+        send_data.set_front_wheel_angle_rad_,
+        min_steering_wheel_angle));
+  }
+
+  if ((fabsf(send_data.set_front_wheel_angle_rate_) > max_steering_wheel_angle_rate) &&
+    check_steering_angle_rate)
+  {
+    send_data.set_front_wheel_angle_rate_ = std::min(
+      max_steering_wheel_angle_rate,
+      std::max(
+        send_data.set_front_wheel_angle_rate_,
+        -max_steering_wheel_angle_rate));
   }
 
   const auto serialData = pack_serial_data(send_data);

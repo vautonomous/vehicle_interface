@@ -227,5 +227,9 @@ private:
   bool reverse_gear_enabled_{false};   // reverse gear enabled or not
   float emergency_stop_acceleration{};   // [m/s^2]
   float gear_shift_velocity_threshold{};   // [m/s]
+  float max_steering_wheel_angle{}; // [degree]
+  float min_steering_wheel_angle{}; // [degree]
+  float max_steering_wheel_angle_rate{}; // [degree/sec]
+  bool check_steering_angle_rate{};
 };
 #endif  // LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
