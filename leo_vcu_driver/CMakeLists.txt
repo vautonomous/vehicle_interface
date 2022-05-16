@@ -25,6 +25,14 @@ ament_auto_find_build_dependencies(REQUIRED
         ${${PROJECT_NAME}_BUILD_DEPENDS}
         ${${PROJECT_NAME}_BUILDTOOL_DEPENDS}
         )
+if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 set(LEO_VCU_DRIVER_LIB_SRC
         src/leo_vcu_driver.cpp
@@ -44,7 +52,6 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
         ${LEO_VCU_DRIVER_LIB_SRC}
         ${LEO_VCU_DRIVER_LIB_HEADERS}
         )
-autoware_set_compile_options(${PROJECT_NAME})
 
 set(LEO_VCU_DRIVER_NODE_SRC
         src/leo_vcu_driver_node.cpp
@@ -57,7 +64,7 @@ ament_auto_add_library(${PROJECT_NAME}_node SHARED
         ${LEO_VCU_DRIVER_NODE_SRC}
         ${LEO_VCU_DRIVER_NODE_HEADERS}
         )
-autoware_set_compile_options(${PROJECT_NAME}_node)
+
 rclcpp_components_register_node(${PROJECT_NAME}_node
         PLUGIN "autoware::leo_vcu_driver::LeoVcuDriverNode"
         EXECUTABLE ${PROJECT_NAME}_node_exe
@@ -72,7 +79,6 @@ if (BUILD_TESTING)
     set(TEST_SOURCES test/test_leo_vcu_driver.cpp)
     set(TEST_LEO_VCU_DRIVER_EXE test_leo_vcu_driver)
     ament_add_gtest(${TEST_LEO_VCU_DRIVER_EXE} ${TEST_SOURCES})
-    autoware_set_compile_options(${TEST_LEO_VCU_DRIVER_EXE})
     target_link_libraries(${TEST_LEO_VCU_DRIVER_EXE} ${PROJECT_NAME})
 endif ()
 
