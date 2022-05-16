@@ -346,7 +346,7 @@ float LeoVcuDriver::steering_tire_to_steering_wheel_angle(float input)   // rad 
     a2 * (pow(static_cast<long double>(input), 3)) +
     a3 * (pow(static_cast<long double>(input), 2)) +
     a4 * static_cast<long double>(input) + a5);
-  return output;
+  return -output;
 }
 
 float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float & input)   // degree input rad output, maybe constants needs re-calculation
@@ -367,7 +367,7 @@ float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float & input)   // de
     a2 * (pow(static_cast<long double>(input), 3)) +
     a3 * (pow(static_cast<long double>(input), 2)) +
     a4 * static_cast<long double>(input) + a5);
-  return output;
+  return -output;
 }
 
 void LeoVcuDriver::llc_publisher()
