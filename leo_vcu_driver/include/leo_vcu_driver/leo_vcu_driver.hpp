@@ -54,6 +54,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 
+
 class LeoVcuDriver : public rclcpp::Node
 {
 public:
@@ -63,6 +64,10 @@ public:
     serial.close();
   }
 
+/**
+ * @brief It checks the autoware data is ready or not.
+ */
+  bool autoware_data_ready();
 /**
  * @brief It is callback function which takes data from "/control/command/control_cmd" topic in Autoware Universe.
  */
@@ -181,7 +186,7 @@ private:
   // To LLC
 
   CompToLlcData_ send_data;
-  // const std::string serial_name_; // I think it is unnecessary
+  const std::string serial_name_{"/dev/ttyLLC"};
   CallbackAsyncSerial serial;
 
   /* subscribers */

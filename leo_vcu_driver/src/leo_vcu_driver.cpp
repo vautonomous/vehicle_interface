@@ -98,7 +98,15 @@ LeoVcuDriver::LeoVcuDriver()
     this, get_clock(), period_ns, std::bind(&LeoVcuDriver::llc_publisher, this));
 
   // From LLC
+
+  LeoVcuDriver::serial.open(serial_name_, 115200);
+  if(!serial.isOpen()){
+    RCLCPP_ERROR(
+      get_logger(), "Serial is not open!!");
+  }
   serial.setCallback(bind(&LeoVcuDriver::serial_receive_callback, this, _1, _2));
+  RCLCPP_INFO(this->get_logger(), "started\n");
+
 }
 
 void LeoVcuDriver::ctrl_cmd_callback(
@@ -221,9 +229,10 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
 
 void LeoVcuDriver::autoware_to_llc_msg_adapter()
 {
+
   if (current_state.gear_report_msg.report != gear_cmd_ptr_->command) {
     // velocity is low -> the shift can be changed
-    if (std::fabs(current_state.twist.longitudinal_velocity) < gear_shift_velocity_threshold) {
+    if (std::fabs(current_state.twist.longitudinal_velocity) < gear_shift_velocity_threshold){
       // TODO(berkay): check here again!
       gear_adapter_to_llc(gear_cmd_ptr_->command);
     } else {
@@ -374,9 +383,16 @@ void LeoVcuDriver::llc_publisher()
 {
   // TODO(brkay54): Check the jerk data is enabled?
   const rclcpp::Time current_time = get_clock()->now();
+
+  // check the autoware data is ready
+
+  if(!autoware_data_ready()){
+    RCLCPP_WARN_ONCE(get_logger(), "Data from Autoware is not ready!");
+    return;
+  }
+
   autoware_to_llc_msg_adapter();
   /* check emergency and timeout */
-
   const double control_cmd_delta_time_ms =
     (current_time - control_command_received_time_).seconds() * 1000.0;
   bool timeouted = false;
@@ -475,4 +491,42 @@ void LeoVcuDriver::gear_adapter_to_llc(const uint8_t & input)
   } else {
     send_data.gear_ = 0;
   }
+}
+
+bool LeoVcuDriver::autoware_data_ready()
+{
+  rclcpp::Clock clock{RCL_ROS_TIME};
+  bool output = true;
+  if(!control_cmd_ptr_)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for current_control_cmd ...");
+    output = false;
+  }
+  if(!turn_indicators_cmd_ptr_)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for turn_indicators_cmd_ ...");
+    output = false;
+  }
+  if(!hazard_lights_cmd_ptr_)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for hazard_lights_cmd ...");
+    output = false;
+  }
+  if(!gear_cmd_ptr_)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for gear_cmd ...");
+    output = false;
+  }
+  if(!emergency_cmd_ptr)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for emergency_cmd ...");
+    output = false;
+  }
+  if(!gate_mode_cmd_ptr)
+  {
+    RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for gate_mode_cmd ...");
+    output = false;
+  }
+
+  return output;
 }
