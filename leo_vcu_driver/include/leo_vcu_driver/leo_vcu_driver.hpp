@@ -159,7 +159,7 @@ private:
   std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(
     const char * data,
     unsigned int len);
-  static std::vector<char> pack_serial_data(const CompToLlcData_ & data);
+  static std::vector<char> pack_serial_data(const CompToLlcData & data);
 
   std::vector<uint8_t> receive_buffer_;
 

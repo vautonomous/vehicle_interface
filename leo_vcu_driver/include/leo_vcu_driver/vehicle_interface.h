@@ -105,7 +105,7 @@ struct VehicleControlCommand_
   float set_long_accel_mps2;
   float set_limit_velocity_mps;
   float set_front_wheel_angle_rad;
-  float set_front_wheel_angle_rate_;
+//  float set_front_wheel_angle_rate_;
 };
 
 struct VehicleStateCommand_
@@ -127,7 +127,7 @@ struct CompToLlcData
     float set_long_accel_mps2_,
     float set_limit_velocity_mps_,
     float set_front_wheel_angle_rad_,
-    float set_front_wheel_angle_rate_,
+//    float set_front_wheel_angle_rate_,
     uint8_t blinker_,
     uint8_t headlight_,
     uint8_t wiper_,
@@ -143,8 +143,8 @@ struct CompToLlcData
   counter {counter_},
   vehicle_control_cmd {set_long_accel_mps2_,
     set_limit_velocity_mps_,
-    set_front_wheel_angle_rad_,
-    set_front_wheel_angle_rate_},
+    set_front_wheel_angle_rad_/*,
+    set_front_wheel_angle_rate_*/},
   vehicle_state_cmd {blinker_,
     headlight_,
     wiper_,
