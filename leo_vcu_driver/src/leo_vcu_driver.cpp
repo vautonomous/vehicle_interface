@@ -329,7 +329,7 @@ std::experimental::optional<LlcToCompData> LeoVcuDriver::find_llc_to_comp_msg(
   return std::experimental::nullopt;
 }
 
-std::vector<char> LeoVcuDriver::pack_serial_data(const CompToLlcData_ & data)
+std::vector<char> LeoVcuDriver::pack_serial_data(const CompToLlcData & data)
 {
   const auto ptr{reinterpret_cast<const uint8_t *>(&data)};
   std::vector<char> dataVec(ptr, ptr + sizeof data);
@@ -429,7 +429,20 @@ void LeoVcuDriver::llc_publisher()
         -max_steering_wheel_angle_rate));
   }
 
-  const auto serialData = pack_serial_data(send_data);
+  CompToLlcData serial_dt(send_data.counter_,
+                          send_data.set_long_accel_mps2_,
+                          send_data.set_limit_velocity_mps_,
+                          send_data.set_front_wheel_angle_rad_,
+                          send_data.blinker_,
+                          send_data.headlight_,
+                          send_data.wiper_,
+                          send_data.gear_,
+                          send_data.mode_,
+                          send_data.hand_brake,
+                          send_data.horn, 0
+  );
+
+  const auto serialData = pack_serial_data(serial_dt);
   serial.write(serialData);
   send_data.counter_++;
 }
