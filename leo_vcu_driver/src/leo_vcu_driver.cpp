@@ -388,6 +388,22 @@ void LeoVcuDriver::llc_publisher()
 
   if(!autoware_data_ready()){
     RCLCPP_WARN_ONCE(get_logger(), "Data from Autoware is not ready!");
+      CompToLlcData serial_dt(send_data.counter_,
+                              0.0,
+                              0.0,
+                              0.0,
+                              1,
+                              1,
+                              1,
+                              1,
+                              2,
+                              0,
+                              0, 0
+      );
+
+      const auto serialData = pack_serial_data(serial_dt);
+      serial.write(serialData);
+      send_data.counter_++;
     return;
   }
 
