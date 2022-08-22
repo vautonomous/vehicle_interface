@@ -91,6 +91,9 @@ LeoVcuDriver::LeoVcuDriver()
   steering_wheel_status_pub_ =
     create_publisher<tier4_vehicle_msgs::msg::SteeringWheelStatusStamped>(
     "/vehicle/status/steering_wheel_status", 1);
+  llc_error_pub_ =
+    create_publisher<std_msgs::msg::String>(
+      "/interface/status/llc_status", 1);
 
   // Timer
   const auto period_ns = rclcpp::Rate(loop_rate_).period();
@@ -162,6 +165,30 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
   if (received_data->state_report.debugstr != current_state.debug_str_last) {
     RCLCPP_INFO(this->get_logger(), "%s", current_state.debug_str_last);
   }
+
+  /*
+   * Convert the error msg to binary string, output is right to left
+   * BBW_timeout
+   * EPAS_timeout
+   * PDS_timeout
+   * BCU_timeout
+   * PC_timeout
+   * BBW_power_err
+   * SBW_power_err
+   * EPAS_power_err
+   * PC_igniton_err
+   * EPAS_system_err
+   * BBW_system_err
+   * PDS_system_err
+   * reserved_bit
+   * reserved_bit
+   * reserved_bit
+   * reserved_bit
+   */
+
+  std_msgs::msg::String error_str;
+  error_str.data = std::bitset<16>(received_data->errors).to_string();
+  llc_error_pub_->publish(error_str);
 
   // Message adapter
   llc_to_autoware_msg_adapter(received_data);
