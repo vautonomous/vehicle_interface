@@ -25,6 +25,7 @@
 #include <vehicle_info_util/vehicle_info_util.hpp>
 #include <vector>
 #include <string>
+#include <bitset>
 
 #include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
 #include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
@@ -218,6 +219,8 @@ private:
     hazard_lights_status_pub_;
   rclcpp::Publisher<tier4_vehicle_msgs::msg::SteeringWheelStatusStamped>::SharedPtr
     steering_wheel_status_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr
+    llc_error_pub_;
 
   // Timer
   rclcpp::TimerBase::SharedPtr tim_data_sender_;
