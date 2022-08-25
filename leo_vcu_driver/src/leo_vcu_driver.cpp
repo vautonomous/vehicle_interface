@@ -370,7 +370,7 @@ float LeoVcuDriver::steering_tire_to_steering_wheel_angle(float input)   // rad 
   const long double a2 = 366.1782284667889888443542437L;
   const long double a3 = -33.453398194869886816L;
   const long double a4 = 832.269397717359360226L;
-  const long double a5 = 0.371560022468346L;
+  const long double a5 = 0.0L;
 //    const long double low_input_boundary = -0.7494655984494486291955L;
 //    const long double high_input_boundary = 0.69883410378631689642371L;
 //    const double low_output_boundary = -750;
@@ -392,7 +392,7 @@ float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float & input)   // de
   const long double a2 = -0.000000000591615714741844L;
   const long double a3 = -0.000000001019639103513L;
   const long double a4 = 0.00119229890869585713718L;
-  const long double a5 = 0.0007330044078284527L;
+  const long double a5 = 0.0L;
 //    const long double low_output_boundary = -0.7494655984494486291955L;
 //    const long double high_output_boundary = 0.69883410378631689642371L;
 //    const double low_input_boundary = -750;
