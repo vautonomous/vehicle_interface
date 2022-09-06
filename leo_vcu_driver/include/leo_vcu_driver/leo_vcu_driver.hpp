@@ -62,7 +62,7 @@ public:
   LeoVcuDriver();
   ~LeoVcuDriver() override
   {
-    serial.close();
+    serial->close();
   }
 
 /**
@@ -183,12 +183,15 @@ private:
   // Current state of vehicle (Got from LLC)
 
   vehicle_current_state_ current_state;
+  std_msgs::msg::String error_str;
+
 
   // To LLC
 
   CompToLlcData_ send_data;
   const std::string serial_name_{"/dev/ttyLLC"};
-  CallbackAsyncSerial serial;
+  CallbackAsyncSerial *serial;
+  bool serial_ready{false};
 
   /* subscribers */
 

@@ -19,6 +19,7 @@
 #include <limits>
 #include <memory>
 #include <utility>
+using namespace std::placeholders;
 
 LeoVcuDriver::LeoVcuDriver()
 : Node("leo_vcu_driver"),
@@ -48,7 +49,6 @@ LeoVcuDriver::LeoVcuDriver()
 
   /* Subscribers */
 
-  using namespace std::placeholders;
 
   // From Autoware
   control_cmd_sub_ = create_subscription<autoware_auto_control_msgs::msg::AckermannControlCommand>(
@@ -93,22 +93,13 @@ LeoVcuDriver::LeoVcuDriver()
     "/vehicle/status/steering_wheel_status", 1);
   llc_error_pub_ =
     create_publisher<std_msgs::msg::String>(
-      "/interface/status/llc_status", 1);
+    "/interface/status/llc_status", 1);
 
   // Timer
   const auto period_ns = rclcpp::Rate(loop_rate_).period();
   tim_data_sender_ = rclcpp::create_timer(
     this, get_clock(), period_ns, std::bind(&LeoVcuDriver::llc_publisher, this));
-
-  // From LLC
-
-  LeoVcuDriver::serial.open(serial_name_, 115200);
-  if(!serial.isOpen()){
-    RCLCPP_ERROR(
-      get_logger(), "Serial is not open!!");
-  }
-  serial.setCallback(bind(&LeoVcuDriver::serial_receive_callback, this, _1, _2));
-  RCLCPP_INFO(this->get_logger(), "started\n");
+  serial = new CallbackAsyncSerial;
 
 }
 
@@ -157,9 +148,14 @@ void LeoVcuDriver::gate_mode_cmd_callback(
 
 void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
 {
+//  if(!serial.isOpen()){
+//    RCLCPP_ERROR(this->get_logger(), "Serial port is not open. Trying to open port...");
+//    LeoVcuDriver::serial.open(serial_name_, 115200);
+//    return;
+//  }
   auto received_data{find_llc_to_comp_msg(data, len)};
   if (!received_data) {
-    RCLCPP_INFO(this->get_logger(), "Received data is not viable!\n");
+    RCLCPP_ERROR(this->get_logger(), "Received data is not viable!\n");
     return;
   }
   if (received_data->state_report.debugstr != current_state.debug_str_last) {
@@ -183,12 +179,70 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
    * reserved_bit
    * reserved_bit
    * reserved_bit
-   * reserved_bit
+   * reserved_bit (If serial not open, this value is going to be 1)
    */
 
-  std_msgs::msg::String error_str;
   error_str.data = std::bitset<16>(received_data->errors).to_string();
-  llc_error_pub_->publish(error_str);
+  for (size_t i = 0; i < error_str.data.size(); i++) {
+    if (error_str.data.at(i) == '1') {
+      switch (i) {
+        case 0:
+          RCLCPP_ERROR(this->get_logger(), "reserved_bit is 1, logic error.");
+          break;
+        case 1:
+          RCLCPP_ERROR(this->get_logger(), "reserved_bit is 1, logic error.");
+          break;
+        case 2:
+          RCLCPP_ERROR(this->get_logger(), "reserved_bit is 1, logic error.");
+          break;
+        case 3:
+          RCLCPP_ERROR(this->get_logger(), "reserved_bit is 1, logic error.");
+          break;
+        case 4:
+          RCLCPP_ERROR(this->get_logger(), "PDS_system_err");
+          break;
+        case 5:
+          RCLCPP_ERROR(this->get_logger(), "BBW_system_err");
+          break;
+        case 6:
+          RCLCPP_ERROR(this->get_logger(), "EPAS_system_err");
+          break;
+        case 7:
+          RCLCPP_ERROR(this->get_logger(), "PC_igniton_err");
+          break;
+        case 8:
+          RCLCPP_ERROR(this->get_logger(), "EPAS_power_err");
+          break;
+        case 9:
+          RCLCPP_ERROR(this->get_logger(), "SBW_power_err");
+          break;
+        case 10:
+          RCLCPP_ERROR(this->get_logger(), "BBW_power_err");
+          break;
+        case 11:
+          RCLCPP_ERROR(this->get_logger(), "PC_timeout");
+          break;
+        case 12:
+          RCLCPP_ERROR(this->get_logger(), "BCU_timeout");
+          break;
+        case 13:
+          RCLCPP_ERROR(this->get_logger(), "PDS_timeout");
+          break;
+        case 14:
+          RCLCPP_ERROR(this->get_logger(), "EPAS_timeout");
+          break;
+        case 15:
+          RCLCPP_ERROR(this->get_logger(), "BBW_timeout");
+          break;
+        default:
+          RCLCPP_ERROR(this->get_logger(), "Invalid error message.");
+          break;
+      }
+    }
+  }
+  RCLCPP_INFO(
+    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d", received_data->state_report.motion_allow, received_data->state_report.ready,
+    received_data->state_report.intervention);
 
   // Message adapter
   llc_to_autoware_msg_adapter(received_data);
@@ -259,7 +313,7 @@ void LeoVcuDriver::autoware_to_llc_msg_adapter()
 
   if (current_state.gear_report_msg.report != gear_cmd_ptr_->command) {
     // velocity is low -> the shift can be changed
-    if (std::fabs(current_state.twist.longitudinal_velocity) < gear_shift_velocity_threshold){
+    if (std::fabs(current_state.twist.longitudinal_velocity) < gear_shift_velocity_threshold) {
       // TODO(berkay): check here again!
       gear_adapter_to_llc(gear_cmd_ptr_->command);
     } else {
@@ -410,27 +464,58 @@ void LeoVcuDriver::llc_publisher()
 {
   // TODO(brkay54): Check the jerk data is enabled?
   const rclcpp::Time current_time = get_clock()->now();
+  if (!serial_ready) {
+    // If serial not open
+    error_str.data = "1000000000000000";
+  }
+  llc_error_pub_->publish(error_str);
+
+  // control serial is open or not, if not open it.
+  if (!serial->isOpen()) {
+
+    try {
+      LeoVcuDriver::serial->open(serial_name_, 115200);
+      serial->setCallback(bind(&LeoVcuDriver::serial_receive_callback, this, _1, _2));
+    } catch (boost::system::system_error & e) {
+      RCLCPP_WARN(
+        this->get_logger(), "%s",
+        e.what());
+      serial_ready = false;
+      return;
+    }
+  } else {
+    serial_ready = true;
+  }
+
+  if (serial->errorStatus() && serial->isOpen()) {
+    delete serial;
+    serial_ready = false;
+    serial = new CallbackAsyncSerial;
+
+    return;
+  }
+
 
   // check the autoware data is ready
 
-  if(!autoware_data_ready()){
+  if (!autoware_data_ready()) {
     RCLCPP_WARN_ONCE(get_logger(), "Data from Autoware is not ready!");
-      CompToLlcData serial_dt(send_data.counter_,
-                              0.0,
-                              0.0,
-                              0.0,
-                              1,
-                              1,
-                              1,
-                              1,
-                              2,
-                              0,
-                              0, 0
-      );
+    CompToLlcData serial_dt(send_data.counter_,
+      0.0,
+      0.0,
+      0.0,
+      1,
+      1,
+      1,
+      1,
+      2,
+      0,
+      0, 0
+    );
 
-      const auto serialData = pack_serial_data(serial_dt);
-      serial.write(serialData);
-      send_data.counter_++;
+    const auto serialData = pack_serial_data(serial_dt);
+    serial->write(serialData);
+    send_data.counter_++;
     return;
   }
 
@@ -473,20 +558,20 @@ void LeoVcuDriver::llc_publisher()
   }
 
   CompToLlcData serial_dt(send_data.counter_,
-                          send_data.set_long_accel_mps2_,
-                          send_data.set_limit_velocity_mps_,
-                          send_data.set_front_wheel_angle_rad_,
-                          send_data.blinker_,
-                          send_data.headlight_,
-                          send_data.wiper_,
-                          send_data.gear_,
-                          send_data.mode_,
-                          send_data.hand_brake,
-                          send_data.horn, 0
+    send_data.set_long_accel_mps2_,
+    send_data.set_limit_velocity_mps_,
+    send_data.set_front_wheel_angle_rad_,
+    send_data.blinker_,
+    send_data.headlight_,
+    send_data.wiper_,
+    send_data.gear_,
+    send_data.mode_,
+    send_data.hand_brake,
+    send_data.horn, 0
   );
 
   const auto serialData = pack_serial_data(serial_dt);
-  serial.write(serialData);
+  serial->write(serialData);
   send_data.counter_++;
 }
 
@@ -553,33 +638,27 @@ bool LeoVcuDriver::autoware_data_ready()
 {
   rclcpp::Clock clock{RCL_ROS_TIME};
   bool output = true;
-  if(!control_cmd_ptr_)
-  {
+  if (!control_cmd_ptr_) {
     RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for current_control_cmd ...");
     output = false;
   }
-  if(!turn_indicators_cmd_ptr_)
-  {
+  if (!turn_indicators_cmd_ptr_) {
     RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for turn_indicators_cmd_ ...");
     output = false;
   }
-  if(!hazard_lights_cmd_ptr_)
-  {
+  if (!hazard_lights_cmd_ptr_) {
     RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for hazard_lights_cmd ...");
     output = false;
   }
-  if(!gear_cmd_ptr_)
-  {
+  if (!gear_cmd_ptr_) {
     RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for gear_cmd ...");
     output = false;
   }
-  if(!emergency_cmd_ptr)
-  {
+  if (!emergency_cmd_ptr) {
     RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for emergency_cmd ...");
     output = false;
   }
-  if(!gate_mode_cmd_ptr)
-  {
+  if (!gate_mode_cmd_ptr) {
     RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for gate_mode_cmd ...");
     output = false;
   }
