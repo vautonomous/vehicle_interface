@@ -120,7 +120,7 @@ public:
  * Steering angle means "Teker açısı" and which is radian.
  * Steering wheel angle means "Direksiyon açısı" and which is degree.
  */
-  float steering_wheel_to_steering_tire_angle(float & input);
+  float steering_wheel_to_steering_tire_angle(float input);
 /**
  * @brief It converts the gear data which is taken from LLC wrt Autoware Universe messages.
  */

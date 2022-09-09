@@ -419,45 +419,55 @@ std::vector<char> LeoVcuDriver::pack_serial_data(const CompToLlcData & data)
 
 float LeoVcuDriver::steering_tire_to_steering_wheel_angle(float input)   // rad input degree output, maybe constants needs re-calculation
 {   // TODO: If input or output is out of boundry, what we will do?
-  const long double a0 = 31.199461665454701533044340519L;
-  const long double a1 = 188.36170978503590077938134L;
-  const long double a2 = 366.1782284667889888443542437L;
-  const long double a3 = -33.453398194869886816L;
-  const long double a4 = 832.269397717359360226L;
-  const long double a5 = 0.0L;
-//    const long double low_input_boundary = -0.7494655984494486291955L;
-//    const long double high_input_boundary = 0.69883410378631689642371L;
-//    const double low_output_boundary = -750;
-//    const double high_output_boundary = 750;
+  const long double a0 = -79.8L;
+  const long double a1 = 284.68L;
+  const long double a2 = -2.49892L;
+  const long double a3 = 921.975L;
+  const long double a4 = -5.46829L;
+  const float low_input_boundary = -vehicle_info_.max_steer_angle_rad;
+  const float high_input_boundary = vehicle_info_.max_steer_angle_rad;
+  const float low_output_boundary = -700.0f;
+  const float high_output_boundary = 700.0f;
 
 
-  auto output = static_cast<float>(a0 * (pow(static_cast<long double>(input), 5)) +
-    a1 * (pow(static_cast<long double>(input), 4)) +
-    a2 * (pow(static_cast<long double>(input), 3)) +
-    a3 * (pow(static_cast<long double>(input), 2)) +
-    a4 * static_cast<long double>(input) + a5);
-  return -output;
+  float input_clamped = std::clamp(input, low_input_boundary, high_input_boundary);
+
+  auto output_raw = static_cast<float>(a0 * (pow(static_cast<long double>(input_clamped), 4)) +
+    a1 * (pow(static_cast<long double>(input_clamped), 3)) +
+    a2 * (pow(static_cast<long double>(input_clamped), 2)) +
+    a3 * static_cast<long double>(input_clamped) + a4);
+
+  float output_clamped = std::clamp(output_raw,low_output_boundary,high_output_boundary);
+
+  return -output_clamped;
 }
 
-float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float & input)   // degree input rad output, maybe constants needs re-calculation
+float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float input)   // degree input rad output, maybe constants needs re-calculation
 {   // TODO: If input or output is out of boundry, what we will do?
-  const long double a0 = 0.0000000000000003633366321943L;
-  const long double a1 = -0.000000000000085484279566027149L;
-  const long double a2 = -0.000000000591615714741844L;
-  const long double a3 = -0.000000001019639103513L;
-  const long double a4 = 0.00119229890869585713718L;
-  const long double a5 = 0.0L;
-//    const long double low_output_boundary = -0.7494655984494486291955L;
-//    const long double high_output_boundary = 0.69883410378631689642371L;
-//    const double low_input_boundary = -750;
-//    const double high_input_boundary = 750;
+  input = -input;
+  const long double a0 = 0.0000000000000103L;
+  const long double a1 = 0.0L;
+  const long double a2 = 0.0000000154L;
+  const long double a3 = 0.00107L;
+  const long double a4 = 0.0056L;
+  const float low_output_boundary = -vehicle_info_.max_steer_angle_rad;
+  const float high_output_boundary = vehicle_info_.max_steer_angle_rad;
+  const float low_input_boundary = -700.0f;
+  const float high_input_boundary = 700.0f;
 
-  auto output = static_cast<float>(a0 * (pow(static_cast<long double>(input), 5)) +
-    a1 * (pow(static_cast<long double>(input), 4)) +
-    a2 * (pow(static_cast<long double>(input), 3)) +
-    a3 * (pow(static_cast<long double>(input), 2)) +
-    a4 * static_cast<long double>(input) + a5);
-  return -output;
+  float input_clamped = std::clamp(input, low_input_boundary, high_input_boundary);
+
+
+
+  auto output_raw = static_cast<float>(a0 * (pow(static_cast<long double>(input_clamped), 4)) +
+    a1 * (pow(static_cast<long double>(input_clamped), 3)) +
+    a2 * (pow(static_cast<long double>(input_clamped), 2)) +
+    a3 * static_cast<long double>(input_clamped) + a4);
+
+  float output_clamped = std::clamp(output_raw,low_output_boundary,high_output_boundary);
+
+
+  return output_clamped;
 }
 
 void LeoVcuDriver::llc_publisher()
