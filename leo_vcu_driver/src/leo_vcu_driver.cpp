@@ -108,6 +108,8 @@ void LeoVcuDriver::ctrl_cmd_callback(
 {
   control_command_received_time_ = this->now();
   control_cmd_ptr_ = msg;
+  RCLCPP_INFO(get_logger(), "target steering degree: %f", control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
+
 }
 
 void LeoVcuDriver::emergency_cmd_callback(
@@ -582,6 +584,7 @@ void LeoVcuDriver::llc_publisher()
     send_data.horn, 0
   );
 
+  RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f", send_data.set_front_wheel_angle_rad_);
   const auto serialData = pack_serial_data(serial_dt);
   serial->write(serialData);
   send_data.counter_++;
