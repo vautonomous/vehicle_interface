@@ -421,6 +421,18 @@ std::vector<char> LeoVcuDriver::pack_serial_data(const CompToLlcData & data)
   return dataVec;
 }
 
+size_t compare(std::vector<float> & vec, double value){
+  double dist = std::numeric_limits<double>::max();
+  size_t output = 0;
+  for(size_t i = 0; i < vec.size(); i++){
+    if(dist > abs(vec.at(i) - value)){
+      dist = abs(vec.at(i) - value);
+      output = i;
+    }
+  }
+  return output;
+}
+
 float LeoVcuDriver::steering_tire_to_steering_wheel_angle(float input)   // rad input degree output, maybe constants needs re-calculation
 {   // TODO: If input or output is out of boundry, what we will do?
   float output = 0.0;
@@ -428,11 +440,8 @@ float LeoVcuDriver::steering_tire_to_steering_wheel_angle(float input)   // rad 
   if(input < steering_angle_.at(0)) input = steering_angle_.at(0);
   if(input > steering_angle_.at(steering_angle_.size() - 1)) input = steering_angle_.at(steering_angle_.size() - 1);
 
-  auto i = min_element(begin(steering_angle_), end(steering_angle_), [=] (int x, int y)
-                       {
-                         return abs(x - input) < abs(y - input);
-                       });
-  size_t nearest_idx =  std::distance(begin(steering_angle_), i);
+  size_t nearest_idx = compare(steering_angle_, input);
+
   if(input > steering_angle_.at(nearest_idx)) other_idx = nearest_idx + 1;
   else if(input < steering_angle_.at(nearest_idx)) other_idx = nearest_idx - 1;
   else other_idx = nearest_idx;
@@ -455,11 +464,8 @@ float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float input)   // degr
   if(input < wheel_angle_.at(0)) input = wheel_angle_.at(0);
   if(input > wheel_angle_.at(wheel_angle_.size() - 1)) input = wheel_angle_.at(wheel_angle_.size() - 1);
 
-  auto i = min_element(begin(wheel_angle_), end(wheel_angle_), [=] (int x, int y)
-                       {
-                         return abs(x - input) < abs(y - input);
-                       });
-  size_t nearest_idx =  std::distance(begin(wheel_angle_), i);
+  size_t nearest_idx = compare(wheel_angle_, input);
+
   if(input > wheel_angle_.at(nearest_idx)) other_idx = nearest_idx + 1;
   else if(input < wheel_angle_.at(nearest_idx)) other_idx = nearest_idx - 1;
   else other_idx = nearest_idx;
