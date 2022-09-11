@@ -108,6 +108,8 @@ void LeoVcuDriver::ctrl_cmd_callback(
 {
   control_command_received_time_ = this->now();
   control_cmd_ptr_ = msg;
+  RCLCPP_INFO(get_logger(), "target steering degree: %f", control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
+
 }
 
 void LeoVcuDriver::emergency_cmd_callback(
@@ -243,6 +245,8 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
   RCLCPP_INFO(
     this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d", received_data->state_report.motion_allow, received_data->state_report.ready,
     received_data->state_report.intervention);
+
+
 
   // Message adapter
   llc_to_autoware_msg_adapter(received_data);
@@ -417,47 +421,63 @@ std::vector<char> LeoVcuDriver::pack_serial_data(const CompToLlcData & data)
   return dataVec;
 }
 
+size_t compare(std::vector<float> & vec, double value){
+  double dist = std::numeric_limits<double>::max();
+  size_t output = 0;
+  for(size_t i = 0; i < vec.size(); i++){
+    if(dist > abs(vec.at(i) - value)){
+      dist = abs(vec.at(i) - value);
+      output = i;
+    }
+  }
+  return output;
+}
+
 float LeoVcuDriver::steering_tire_to_steering_wheel_angle(float input)   // rad input degree output, maybe constants needs re-calculation
 {   // TODO: If input or output is out of boundry, what we will do?
-  const long double a0 = 31.199461665454701533044340519L;
-  const long double a1 = 188.36170978503590077938134L;
-  const long double a2 = 366.1782284667889888443542437L;
-  const long double a3 = -33.453398194869886816L;
-  const long double a4 = 832.269397717359360226L;
-  const long double a5 = 0.0L;
-//    const long double low_input_boundary = -0.7494655984494486291955L;
-//    const long double high_input_boundary = 0.69883410378631689642371L;
-//    const double low_output_boundary = -750;
-//    const double high_output_boundary = 750;
+  float output = 0.0;
+  size_t other_idx = 0;
+  if(input < steering_angle_.at(0)) input = steering_angle_.at(0);
+  if(input > steering_angle_.at(steering_angle_.size() - 1)) input = steering_angle_.at(steering_angle_.size() - 1);
 
+  size_t nearest_idx = compare(steering_angle_, input);
 
-  auto output = static_cast<float>(a0 * (pow(static_cast<long double>(input), 5)) +
-    a1 * (pow(static_cast<long double>(input), 4)) +
-    a2 * (pow(static_cast<long double>(input), 3)) +
-    a3 * (pow(static_cast<long double>(input), 2)) +
-    a4 * static_cast<long double>(input) + a5);
+  if(input > steering_angle_.at(nearest_idx)) other_idx = nearest_idx + 1;
+  else if(input < steering_angle_.at(nearest_idx)) other_idx = nearest_idx - 1;
+  else other_idx = nearest_idx;
+
+  if(other_idx == nearest_idx){
+    output = wheel_angle_.at(nearest_idx);
+  } else {
+    float ratio = (input - steering_angle_.at(nearest_idx)) / (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
+    output = wheel_angle_.at(nearest_idx) + ratio * (wheel_angle_.at(other_idx) - wheel_angle_.at(nearest_idx));
+  }
+
   return -output;
 }
 
-float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float & input)   // degree input rad output, maybe constants needs re-calculation
+float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float input)   // degree input rad output, maybe constants needs re-calculation
 {   // TODO: If input or output is out of boundry, what we will do?
-  const long double a0 = 0.0000000000000003633366321943L;
-  const long double a1 = -0.000000000000085484279566027149L;
-  const long double a2 = -0.000000000591615714741844L;
-  const long double a3 = -0.000000001019639103513L;
-  const long double a4 = 0.00119229890869585713718L;
-  const long double a5 = 0.0L;
-//    const long double low_output_boundary = -0.7494655984494486291955L;
-//    const long double high_output_boundary = 0.69883410378631689642371L;
-//    const double low_input_boundary = -750;
-//    const double high_input_boundary = 750;
+  input = -input;
+  float output = 0.0;
+  size_t other_idx = 0;
+  if(input < wheel_angle_.at(0)) input = wheel_angle_.at(0);
+  if(input > wheel_angle_.at(wheel_angle_.size() - 1)) input = wheel_angle_.at(wheel_angle_.size() - 1);
 
-  auto output = static_cast<float>(a0 * (pow(static_cast<long double>(input), 5)) +
-    a1 * (pow(static_cast<long double>(input), 4)) +
-    a2 * (pow(static_cast<long double>(input), 3)) +
-    a3 * (pow(static_cast<long double>(input), 2)) +
-    a4 * static_cast<long double>(input) + a5);
-  return -output;
+  size_t nearest_idx = compare(wheel_angle_, input);
+
+  if(input > wheel_angle_.at(nearest_idx)) other_idx = nearest_idx + 1;
+  else if(input < wheel_angle_.at(nearest_idx)) other_idx = nearest_idx - 1;
+  else other_idx = nearest_idx;
+
+  if(other_idx == nearest_idx){
+    output = steering_angle_.at(nearest_idx);
+  } else {
+    float ratio = (input - wheel_angle_.at(nearest_idx)) / (wheel_angle_.at(other_idx) - wheel_angle_.at(nearest_idx));
+    output = steering_angle_.at(nearest_idx) + ratio * (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
+  }
+
+  return output;
 }
 
 void LeoVcuDriver::llc_publisher()
@@ -570,6 +590,7 @@ void LeoVcuDriver::llc_publisher()
     send_data.horn, 0
   );
 
+  RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f", send_data.set_front_wheel_angle_rad_);
   const auto serialData = pack_serial_data(serial_dt);
   serial->write(serialData);
   send_data.counter_++;
