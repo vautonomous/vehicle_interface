@@ -243,6 +243,23 @@ private:
   float max_steering_wheel_angle_rate{}; // [degree/sec]
   bool check_steering_angle_rate{};
 
+  // Define a struct to store autonomous system faults
+  struct SystemError{
+    std::pair<std::string, bool> pds_system_error{"PDS system error detected!", false};
+    std::pair<std::string, bool> bbw_system_error{"BBW system error detected!", false};
+    std::pair<std::string, bool> epas_system_error{"EPAS system error detected!", false};
+    std::pair<std::string, bool> pc_ignition_error {"PC ignition error detected!", false};
+    std::pair<std::string, bool> epas_pwr_error{"EPAS power error detected!", false};
+    std::pair<std::string, bool> sbw_pwr_error{"SBW power error detected!", false};
+    std::pair<std::string, bool> bbw_pwr_error{"BBW power error detected!", false};
+    std::pair<std::string, bool> pc_timeout{"PC timeout detected!", false};
+    std::pair<std::string, bool> bcu_timeout{"BCU timeout detected!", false};
+    std::pair<std::string, bool> pds_timeout{"PDS timeout detected!", false};
+    std::pair<std::string, bool> epas_timeout{"EPAS timeout detected!", false};
+    std::pair<std::string, bool> bbw_timeout{"BBW timeout detected!", false};
+  };
+
+  SystemError system_error_diagnostics_;
   std::vector<float> wheel_angle_{-700.0,
                                   -650.0,
                                   -600.0,
