@@ -72,6 +72,8 @@ LeoVcuDriver::LeoVcuDriver()
   emergency_sub_ = create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
     "/control/command/emergency_cmd", 1,
     std::bind(&LeoVcuDriver::emergency_cmd_callback, this, _1));
+  emergency_state_sub_ = this->create_subscription<autoware_auto_system_msgs::msg::EmergencyState>(
+    "/system/emergency/emergency_state", 1, std::bind(&LeoVcuDriver::onEmergencyState, this, _1));
 
   /* publisher */
 
@@ -126,6 +128,14 @@ void LeoVcuDriver::ctrl_cmd_callback(
   control_cmd_ptr_ = msg;
   RCLCPP_INFO(get_logger(), "target steering degree: %f", control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
 
+}
+
+void LeoVcuDriver::onEmergencyState(autoware_auto_system_msgs::msg::EmergencyState::ConstSharedPtr msg)
+{
+  is_emergency_ = (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_OPERATING) ||
+                         (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_SUCCEEDED) ||
+                         (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_FAILED);
+  take_over_requested_ = msg->state == autoware_auto_system_msgs::msg::EmergencyState::OVERRIDE_REQUESTING;
 }
 
 void LeoVcuDriver::emergency_cmd_callback(
@@ -577,7 +587,7 @@ void LeoVcuDriver::llc_publisher()
   if (t_out >= 0 && control_cmd_delta_time_ms > t_out) {
     timeouted = true;
   }
-  if (emergency_cmd_ptr->emergency || timeouted) {
+  if (emergency_cmd_ptr->emergency || timeouted || is_emergency_) {
     RCLCPP_ERROR(
       get_logger(), "Emergency Stopping, emergency = %d, timeouted = %d", emergency_cmd_ptr->emergency,
       timeouted);

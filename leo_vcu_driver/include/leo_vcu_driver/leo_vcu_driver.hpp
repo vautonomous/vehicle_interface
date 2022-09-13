@@ -40,6 +40,7 @@
 #include <autoware_auto_vehicle_msgs/msg/velocity_report.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <tier4_control_msgs/msg/gate_mode.hpp>
+#include <autoware_auto_system_msgs/msg/emergency_state.hpp>
 #include <tier4_vehicle_msgs/msg/actuation_command_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/actuation_status_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/steering_wheel_status_stamped.hpp>
@@ -99,10 +100,9 @@ public:
    */
   void emergency_cmd_callback(
     const tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr msg);
-  /**
-   * @brief It is callback function which takes data from "/control/current_gate_mode" topic from
-   * Autoware Universe.
-   */
+/**
+ * @brief It is callback function which takes data from "/control/current_gate_mode" topic from Autoware Universe.
+ */
   void gate_mode_cmd_callback(const tier4_control_msgs::msg::GateMode::ConstSharedPtr msg);
   /**
    * @brief It sends data from interface to low level controller.
@@ -226,6 +226,7 @@ private:
   autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr gear_cmd_ptr_;
   tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr emergency_cmd_ptr;
   tier4_control_msgs::msg::GateMode::ConstSharedPtr gate_mode_cmd_ptr;
+
   bool engage_cmd_{0};
 
   /* Variables */
@@ -242,6 +243,8 @@ private:
   const std::string serial_name_{"/dev/ttyLLC"};
   CallbackAsyncSerial * serial;
   bool serial_ready{false};
+  bool is_emergency_{false};
+  bool take_over_requested_{false};
 
   /* subscribers */
 
@@ -256,6 +259,8 @@ private:
   rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::Engage>::SharedPtr engage_cmd_sub_;
   rclcpp::Subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>::SharedPtr emergency_sub_;
   rclcpp::Subscription<tier4_control_msgs::msg::GateMode>::ConstSharedPtr gate_mode_sub_;
+  rclcpp::Subscription<autoware_auto_system_msgs::msg::EmergencyState>::SharedPtr emergency_state_sub_;
+
 
   /* publishers */
 
