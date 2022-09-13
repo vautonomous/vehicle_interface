@@ -365,6 +365,11 @@ void LeoVcuDriver::autoware_to_llc_msg_adapter()
         static_cast<double>(current_state.twist.longitudinal_velocity));
     }
   }
+  if(take_over_requested_){
+    send_data.takeover_request = 1;
+  } else {
+    send_data.takeover_request = 0;
+  }
   indicator_adapter_to_llc();
   send_data.set_long_accel_mps2_ = control_cmd_ptr_->longitudinal.acceleration;
   send_data.set_front_wheel_angle_rad_ =

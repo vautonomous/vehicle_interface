@@ -55,10 +55,10 @@ struct CompToLlcData_
   uint8_t gear_ {};
   uint8_t mode_ {};
   uint8_t hand_brake {0};
-  uint8_t horn {0};
+  uint8_t takeover_request {0}; // no takeover for 0, takeover for 1
   uint8_t rsv {0};
-  // Not used data: wiper, headlight, handbrake, and horn
-  // Default values wiper = 1 (Off), headlight = 1 (Off), handbrake = 0 (not used in LLC), horn = 0
+  // Not used data: wiper, headlight, handbrake
+  // Default values wiper = 1 (Off), headlight = 1 (Off), handbrake = 0 (not used in LLC)
 };
 
 
@@ -71,7 +71,7 @@ struct StateReport_
   uint8_t gear;
   uint8_t mode;
   uint8_t hand_brake;
-  uint8_t horn;
+  uint8_t takeover_request;
   uint8_t intervention;
   uint8_t ready;
   uint8_t motion_allow;
@@ -116,7 +116,7 @@ struct VehicleStateCommand_
   uint8_t gear;
   uint8_t mode;
   uint8_t hand_brake;           //bool
-  uint8_t horn;          //bool
+  uint8_t takeover_request;          //bool
   uint8_t rsv;
 };
 
@@ -134,7 +134,7 @@ struct CompToLlcData
     uint8_t gear_,
     uint8_t mode_,
     uint8_t hand_brake,
-    uint8_t horn,
+    uint8_t takeover_request,
     uint8_t rsv) :
 
   frame_id1 {comp_to_llc_msg_frame_id},
@@ -151,7 +151,7 @@ struct CompToLlcData
     gear_,
     mode_,
     hand_brake,
-    horn,
+    takeover_request,
     rsv},
   crc {0},
   eof_id1 {comp_to_llc_msg_eof_id},
