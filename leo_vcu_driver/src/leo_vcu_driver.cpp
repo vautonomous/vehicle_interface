@@ -631,7 +631,7 @@ void LeoVcuDriver::llc_publisher()
     send_data.gear_,
     send_data.mode_,
     send_data.hand_brake,
-    send_data.horn, 0
+    send_data.takeover_request, 0
   );
 
   RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f", send_data.set_front_wheel_angle_rad_);
