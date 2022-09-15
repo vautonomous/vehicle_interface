@@ -121,7 +121,7 @@ LeoVcuDriver::LeoVcuDriver()
   tim_data_sender_ = rclcpp::create_timer(
     this, get_clock(), period_ns, std::bind(&LeoVcuDriver::llc_publisher, this));
   serial = new CallbackAsyncSerial;
-
+  current_emergency_acceleration = soft_stop_acceleration;
 }
 
 void LeoVcuDriver::ctrl_cmd_callback(
@@ -612,13 +612,13 @@ void LeoVcuDriver::llc_publisher()
     send_data.takeover_request = true;
     if(!prev_emergency){
       current_emergency_acceleration = soft_stop_acceleration;
+      prev_emergency = true;
     } else {
       current_emergency_acceleration += (1/loop_rate_) * add_emergency_acceleration_per_second;
     }
-    prev_emergency = true;
     send_data.set_long_accel_mps2_ = std::min(current_emergency_acceleration, emergency_stop_acceleration);
     RCLCPP_ERROR(
-      get_logger(), "Emergency Stopping, emergency = %d, acceleration = %f", emergency_cmd_ptr->emergency, send_data.set_long_accel_mps2_);
+      get_logger(), "Emergency Stopping, emergency = %d, acceleration = %f, max_acc = %f, soft_acceleration = %f", emergency_cmd_ptr->emergency, send_data.set_long_accel_mps2_, emergency_stop_acceleration, soft_stop_acceleration);
   } else {
     prev_emergency = false;
     current_emergency_acceleration = soft_stop_acceleration;

@@ -248,7 +248,7 @@ private:
   bool serial_ready{false};
   bool is_emergency_{false};
   bool prev_emergency{false};
-  float current_emergency_acceleration{};
+  float current_emergency_acceleration{0.0};
   bool take_over_requested_{false};
 
   /* subscribers */
