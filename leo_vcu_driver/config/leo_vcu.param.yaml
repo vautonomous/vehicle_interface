@@ -9,4 +9,6 @@
     max_steering_wheel_angle: 700.0
     min_steering_wheel_angle: -700.0
     max_steering_wheel_angle_rate: 300.0
-    check_steering_angle_rate: true
+    check_steering_angle_rate: false
+    soft_stop_acceleration: -1.5
+    add_emergency_acceleration_per_second: -0.5

@@ -244,6 +244,8 @@ private:
   CallbackAsyncSerial * serial;
   bool serial_ready{false};
   bool is_emergency_{false};
+  bool prev_emergency{false};
+  float current_emergency_acceleration{};
   bool take_over_requested_{false};
 
   /* subscribers */
@@ -296,6 +298,8 @@ private:
   float min_steering_wheel_angle{};       // [degree]
   float max_steering_wheel_angle_rate{};  // [degree/sec]
   bool check_steering_angle_rate{};
+  float soft_stop_acceleration{};  // [m/s^2]
+  float add_emergency_acceleration_per_second{}; // [m/s^3]
 
   // Diagnostic Updater Object
   diagnostic_updater::Updater updater_;

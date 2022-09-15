@@ -47,6 +47,9 @@ LeoVcuDriver::LeoVcuDriver()
   max_steering_wheel_angle_rate =
     static_cast<float>(declare_parameter("max_steering_wheel_angle_rate", 300.0));
   check_steering_angle_rate = declare_parameter("check_steering_angle_rate", true);
+  soft_stop_acceleration = declare_parameter("soft_stop_acceleration", -1.5);
+  add_emergency_acceleration_per_second = declare_parameter("add_emergency_acceleration_per_second", -0.5);
+
 
   /* Subscribers */
 
@@ -126,7 +129,7 @@ void LeoVcuDriver::ctrl_cmd_callback(
 {
   control_command_received_time_ = this->now();
   control_cmd_ptr_ = msg;
-  RCLCPP_INFO(get_logger(), "target steering degree: %f", control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
+//  RCLCPP_INFO(get_logger(), "target steering degree: %f", control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
 
 }
 
@@ -280,10 +283,9 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
       }
     }
   }
-  system_error_diagnostics_ = latest_system_error;
-  RCLCPP_INFO(
-    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d", received_data->state_report.motion_allow, received_data->state_report.ready,
-    received_data->state_report.intervention);
+//  RCLCPP_INFO(
+//    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d", received_data->state_report.motion_allow, received_data->state_report.ready,
+//    received_data->state_report.intervention);
 
 
 
@@ -584,7 +586,9 @@ void LeoVcuDriver::llc_publisher()
   }
 
   autoware_to_llc_msg_adapter();
+
   /* check emergency and timeout */
+
   const double control_cmd_delta_time_ms =
     (current_time - control_command_received_time_).seconds() * 1000.0;
   bool timeouted = false;
@@ -592,11 +596,33 @@ void LeoVcuDriver::llc_publisher()
   if (t_out >= 0 && control_cmd_delta_time_ms > t_out) {
     timeouted = true;
   }
-  if (emergency_cmd_ptr->emergency || timeouted || is_emergency_) {
+  if(timeouted){
     RCLCPP_ERROR(
-      get_logger(), "Emergency Stopping, emergency = %d, timeouted = %d", emergency_cmd_ptr->emergency,
+      get_logger(), "Emergency Stopping, controller output is timeouted = %d",
       timeouted);
-    send_data.set_long_accel_mps2_ = emergency_stop_acceleration;
+    is_emergency_ = true;
+  }
+  if(take_over_requested_){
+    RCLCPP_ERROR(
+      get_logger(), "Takeover requested. Soft stop acceleration is publishing. Acceleration: %f", soft_stop_acceleration);
+    send_data.set_long_accel_mps2_ = soft_stop_acceleration;
+    send_data.takeover_request = true;
+  }
+  if (emergency_cmd_ptr->emergency || is_emergency_) {
+    send_data.takeover_request = true;
+    if(!prev_emergency){
+      current_emergency_acceleration = soft_stop_acceleration;
+    } else {
+      current_emergency_acceleration += (1/loop_rate_) * add_emergency_acceleration_per_second;
+    }
+    prev_emergency = true;
+    send_data.set_long_accel_mps2_ = std::min(current_emergency_acceleration, emergency_stop_acceleration);
+    RCLCPP_ERROR(
+      get_logger(), "Emergency Stopping, emergency = %d, acceleration = %f", emergency_cmd_ptr->emergency, send_data.set_long_accel_mps2_);
+  } else {
+    prev_emergency = false;
+    current_emergency_acceleration = soft_stop_acceleration;
+    send_data.takeover_request = false;
   }
 
   /* check the steering wheel angle and steering wheel angle rate limits */
@@ -634,7 +660,7 @@ void LeoVcuDriver::llc_publisher()
     send_data.takeover_request, 0
   );
 
-  RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f", send_data.set_front_wheel_angle_rad_);
+//  RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f", send_data.set_front_wheel_angle_rad_);
   const auto serialData = pack_serial_data(serial_dt);
   serial->write(serialData);
   send_data.counter_++;
