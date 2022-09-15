@@ -616,7 +616,7 @@ void LeoVcuDriver::llc_publisher()
     } else {
       current_emergency_acceleration += (1/loop_rate_) * add_emergency_acceleration_per_second;
     }
-    send_data.set_long_accel_mps2_ = std::min(current_emergency_acceleration, emergency_stop_acceleration);
+    send_data.set_long_accel_mps2_ = std::max(current_emergency_acceleration, emergency_stop_acceleration);
     RCLCPP_ERROR(
       get_logger(), "Emergency Stopping, emergency = %d, acceleration = %f, max_acc = %f, soft_acceleration = %f", emergency_cmd_ptr->emergency, send_data.set_long_accel_mps2_, emergency_stop_acceleration, soft_stop_acceleration);
   } else {
