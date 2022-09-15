@@ -160,7 +160,10 @@ public:
    * LLC Data Structure which are defined as global variable.
    */
   void autoware_to_llc_msg_adapter();
-
+  /**
+   * @brief Check the emergency state of autoware
+   */
+  void onEmergencyState(autoware_auto_system_msgs::msg::EmergencyState::ConstSharedPtr msg);
 private:
   std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(
     const char * data, unsigned int len);
