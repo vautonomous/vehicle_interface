@@ -115,7 +115,7 @@ LeoVcuDriver::LeoVcuDriver()
   tim_data_sender_ = rclcpp::create_timer(
     this, get_clock(), period_ns, std::bind(&LeoVcuDriver::llc_publisher, this));
   serial = new CallbackAsyncSerial;
-  current_emergency_acceleration = -fabs(soft_stop_acceleration);
+  current_emergency_acceleration = -std::fabs(soft_stop_acceleration);
 }
 
 void LeoVcuDriver::ctrl_cmd_callback(
@@ -598,20 +598,20 @@ void LeoVcuDriver::llc_publisher()
     RCLCPP_ERROR(
       get_logger(), "Takeover requested. Soft stop acceleration is publishing. Acceleration: %f",
       soft_stop_acceleration);
-    send_data.set_long_accel_mps2_ = -fabs(soft_stop_acceleration);
+    send_data.set_long_accel_mps2_ = -std::fabs(soft_stop_acceleration);
     send_data.takeover_request = true;
   }
   if (emergency_cmd_ptr->emergency || is_emergency_) {
     send_data.takeover_request = true;
     if (!prev_emergency) {
-      current_emergency_acceleration = -fabs(soft_stop_acceleration);
+      current_emergency_acceleration = -std::fabs(soft_stop_acceleration);
       prev_emergency = true;
     } else {
       current_emergency_acceleration +=
-        (1 / loop_rate_) * (-fabs(add_emergency_acceleration_per_second));
+        (1 / loop_rate_) * (-std::fabs(add_emergency_acceleration_per_second));
     }
     send_data.set_long_accel_mps2_ =
-      -fabs(std::max(-fabs(current_emergency_acceleration), -fabs(emergency_stop_acceleration)));
+      -std::fabs(std::max(-std::fabs(current_emergency_acceleration), -std::fabs(emergency_stop_acceleration)));
     RCLCPP_ERROR(
       get_logger(),
       "Emergency Stopping, emergency = %d, acceleration = %f, max_acc = %f, soft_acceleration = "
@@ -620,7 +620,7 @@ void LeoVcuDriver::llc_publisher()
       soft_stop_acceleration, add_emergency_acceleration_per_second);
   } else {
     prev_emergency = false;
-    current_emergency_acceleration = -fabs(soft_stop_acceleration);
+    current_emergency_acceleration = -std::fabs(soft_stop_acceleration);
     send_data.takeover_request = false;
   }
 
