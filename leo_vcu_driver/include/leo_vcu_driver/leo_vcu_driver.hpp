@@ -21,13 +21,14 @@
 #ifndef LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
 #define LEO_VCU_DRIVER__LEO_VCU_DRIVER_HPP_
 
-
+#include <diagnostic_updater/diagnostic_updater.hpp>
 #include <experimental/optional>
 #include <leo_vcu_driver/visibility_control.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <vehicle_info_util/vehicle_info_util.hpp>
 
 #include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
+#include <autoware_auto_system_msgs/msg/emergency_state.hpp>
 #include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
 #include <autoware_auto_vehicle_msgs/msg/engage.hpp>
 #include <autoware_auto_vehicle_msgs/msg/gear_command.hpp>
@@ -40,13 +41,10 @@
 #include <autoware_auto_vehicle_msgs/msg/velocity_report.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <tier4_control_msgs/msg/gate_mode.hpp>
-#include <autoware_auto_system_msgs/msg/emergency_state.hpp>
 #include <tier4_vehicle_msgs/msg/actuation_command_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/actuation_status_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/steering_wheel_status_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/vehicle_emergency_stamped.hpp>
-
-#include <diagnostic_updater/diagnostic_updater.hpp>
 
 #include <leo_vcu_driver/AsyncSerial.h>
 #include <leo_vcu_driver/checksum.h>
@@ -100,9 +98,10 @@ public:
    */
   void emergency_cmd_callback(
     const tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr msg);
-/**
- * @brief It is callback function which takes data from "/control/current_gate_mode" topic from Autoware Universe.
- */
+  /**
+   * @brief It is callback function which takes data from "/control/current_gate_mode" topic from
+   * Autoware Universe.
+   */
   void gate_mode_cmd_callback(const tier4_control_msgs::msg::GateMode::ConstSharedPtr msg);
   /**
    * @brief It sends data from interface to low level controller.
@@ -164,6 +163,7 @@ public:
    * @brief Check the emergency state of autoware
    */
   void onEmergencyState(autoware_auto_system_msgs::msg::EmergencyState::ConstSharedPtr msg);
+
 private:
   std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(
     const char * data, unsigned int len);
@@ -264,8 +264,8 @@ private:
   rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::Engage>::SharedPtr engage_cmd_sub_;
   rclcpp::Subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>::SharedPtr emergency_sub_;
   rclcpp::Subscription<tier4_control_msgs::msg::GateMode>::ConstSharedPtr gate_mode_sub_;
-  rclcpp::Subscription<autoware_auto_system_msgs::msg::EmergencyState>::SharedPtr emergency_state_sub_;
-
+  rclcpp::Subscription<autoware_auto_system_msgs::msg::EmergencyState>::SharedPtr
+    emergency_state_sub_;
 
   /* publishers */
 
@@ -301,8 +301,8 @@ private:
   float min_steering_wheel_angle{};       // [degree]
   float max_steering_wheel_angle_rate{};  // [degree/sec]
   bool check_steering_angle_rate{};
-  float soft_stop_acceleration{};  // [m/s^2]
-  float add_emergency_acceleration_per_second{}; // [m/s^3]
+  float soft_stop_acceleration{};                 // [m/s^2]
+  float add_emergency_acceleration_per_second{};  // [m/s^3]
 
   // Diagnostic Updater Object
   diagnostic_updater::Updater updater_;

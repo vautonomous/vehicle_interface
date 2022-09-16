@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include <leo_vcu_driver/leo_vcu_driver.hpp>
 
 #include <algorithm>
@@ -41,18 +40,16 @@ LeoVcuDriver::LeoVcuDriver()
     static_cast<float>(declare_parameter("gear_shift_velocity_threshold", 0.1));
   max_steering_wheel_angle =
     static_cast<float>(declare_parameter("max_steering_wheel_angle", 750.0));
-  min_steering_wheel_angle = static_cast<float>(declare_parameter(
-      "min_steering_wheel_angle",
-      -750.0));
+  min_steering_wheel_angle =
+    static_cast<float>(declare_parameter("min_steering_wheel_angle", -750.0));
   max_steering_wheel_angle_rate =
     static_cast<float>(declare_parameter("max_steering_wheel_angle_rate", 300.0));
   check_steering_angle_rate = declare_parameter("check_steering_angle_rate", true);
   soft_stop_acceleration = declare_parameter("soft_stop_acceleration", -1.5);
-  add_emergency_acceleration_per_second = declare_parameter("add_emergency_acceleration_per_second", -0.5);
-
+  add_emergency_acceleration_per_second =
+    declare_parameter("add_emergency_acceleration_per_second", -0.5);
 
   /* Subscribers */
-
 
   // From Autoware
   control_cmd_sub_ = create_subscription<autoware_auto_control_msgs::msg::AckermannControlCommand>(
@@ -61,17 +58,16 @@ LeoVcuDriver::LeoVcuDriver()
     "/control/command/gear_cmd", 1, std::bind(&LeoVcuDriver::gear_cmd_callback, this, _1));
   turn_indicators_cmd_sub_ =
     create_subscription<autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand>(
-    "/control/command/turn_indicators_cmd", rclcpp::QoS{1},
-    std::bind(&LeoVcuDriver::turn_indicators_cmd_callback, this, _1));
+      "/control/command/turn_indicators_cmd", rclcpp::QoS{1},
+      std::bind(&LeoVcuDriver::turn_indicators_cmd_callback, this, _1));
   hazard_lights_cmd_sub_ =
     create_subscription<autoware_auto_vehicle_msgs::msg::HazardLightsCommand>(
-    "/control/command/hazard_lights_cmd", rclcpp::QoS{1},
-    std::bind(&LeoVcuDriver::hazard_lights_cmd_callback, this, _1));
+      "/control/command/hazard_lights_cmd", rclcpp::QoS{1},
+      std::bind(&LeoVcuDriver::hazard_lights_cmd_callback, this, _1));
   engage_cmd_sub_ = create_subscription<autoware_auto_vehicle_msgs::msg::Engage>(
     "/vehicle/engage", rclcpp::QoS{1}, std::bind(&LeoVcuDriver::engage_cmd_callback, this, _1));
   gate_mode_sub_ = create_subscription<tier4_control_msgs::msg::GateMode>(
-    "/control/current_gate_mode", 1,
-    std::bind(&LeoVcuDriver::gate_mode_cmd_callback, this, _1));
+    "/control/current_gate_mode", 1, std::bind(&LeoVcuDriver::gate_mode_cmd_callback, this, _1));
   emergency_sub_ = create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
     "/control/command/emergency_cmd", 1,
     std::bind(&LeoVcuDriver::emergency_cmd_callback, this, _1));
@@ -91,15 +87,13 @@ LeoVcuDriver::LeoVcuDriver()
     "/vehicle/status/gear_status", rclcpp::QoS{1});
   turn_indicators_status_pub_ =
     create_publisher<autoware_auto_vehicle_msgs::msg::TurnIndicatorsReport>(
-    "/vehicle/status/turn_indicators_status", rclcpp::QoS{1});
+      "/vehicle/status/turn_indicators_status", rclcpp::QoS{1});
   hazard_lights_status_pub_ = create_publisher<autoware_auto_vehicle_msgs::msg::HazardLightsReport>(
     "/vehicle/status/hazard_lights_status", rclcpp::QoS{1});
   steering_wheel_status_pub_ =
     create_publisher<tier4_vehicle_msgs::msg::SteeringWheelStatusStamped>(
-    "/vehicle/status/steering_wheel_status", 1);
-  llc_error_pub_ =
-    create_publisher<std_msgs::msg::String>(
-    "/interface/status/llc_status", 1);
+      "/vehicle/status/steering_wheel_status", 1);
+  llc_error_pub_ = create_publisher<std_msgs::msg::String>("/interface/status/llc_status", 1);
 
   // System error diagnostic
   updater_.setHardwareID("vehicle_error_monitor");
@@ -121,7 +115,7 @@ LeoVcuDriver::LeoVcuDriver()
   tim_data_sender_ = rclcpp::create_timer(
     this, get_clock(), period_ns, std::bind(&LeoVcuDriver::llc_publisher, this));
   serial = new CallbackAsyncSerial;
-  current_emergency_acceleration = soft_stop_acceleration;
+  current_emergency_acceleration = -fabs(soft_stop_acceleration);
 }
 
 void LeoVcuDriver::ctrl_cmd_callback(
@@ -129,16 +123,18 @@ void LeoVcuDriver::ctrl_cmd_callback(
 {
   control_command_received_time_ = this->now();
   control_cmd_ptr_ = msg;
-//  RCLCPP_INFO(get_logger(), "target steering degree: %f", control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
-
+  //  RCLCPP_INFO(get_logger(), "target steering degree: %f",
+  //  control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
 }
 
-void LeoVcuDriver::onEmergencyState(autoware_auto_system_msgs::msg::EmergencyState::ConstSharedPtr msg)
+void LeoVcuDriver::onEmergencyState(
+  autoware_auto_system_msgs::msg::EmergencyState::ConstSharedPtr msg)
 {
   is_emergency_ = (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_OPERATING) ||
-                         (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_SUCCEEDED) ||
-                         (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_FAILED);
-  take_over_requested_ = msg->state == autoware_auto_system_msgs::msg::EmergencyState::OVERRIDE_REQUESTING;
+                  (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_SUCCEEDED) ||
+                  (msg->state == autoware_auto_system_msgs::msg::EmergencyState::MRM_FAILED);
+  take_over_requested_ =
+    msg->state == autoware_auto_system_msgs::msg::EmergencyState::OVERRIDE_REQUESTING;
 }
 
 void LeoVcuDriver::emergency_cmd_callback(
@@ -174,16 +170,11 @@ void LeoVcuDriver::engage_cmd_callback(
 void LeoVcuDriver::gate_mode_cmd_callback(
   const tier4_control_msgs::msg::GateMode::ConstSharedPtr msg)
 {
-  gate_mode_cmd_ptr = msg;   // AUTO = 0, EXTERNAL = 1
+  gate_mode_cmd_ptr = msg;  // AUTO = 0, EXTERNAL = 1
 }
 
 void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
 {
-//  if(!serial.isOpen()){
-//    RCLCPP_ERROR(this->get_logger(), "Serial port is not open. Trying to open port...");
-//    LeoVcuDriver::serial.open(serial_name_, 115200);
-//    return;
-//  }
   auto received_data{find_llc_to_comp_msg(data, len)};
   if (!received_data) {
     RCLCPP_ERROR(this->get_logger(), "Received data is not viable!\n");
@@ -283,11 +274,10 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
       }
     }
   }
-//  RCLCPP_INFO(
-//    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d", received_data->state_report.motion_allow, received_data->state_report.ready,
-//    received_data->state_report.intervention);
-
-
+  RCLCPP_INFO(
+    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d",
+    received_data->state_report.motion_allow, received_data->state_report.ready,
+    received_data->state_report.intervention);
 
   // Message adapter
   llc_to_autoware_msg_adapter(received_data);
@@ -343,11 +333,12 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
   current_state.twist.longitudinal_velocity = received_data->vehicle_odometry.velocity_mps;
   current_state.steering_tire_status_msg.steering_tire_angle =
     steering_wheel_to_steering_tire_angle(
-    current_state.steering_wheel_status_msg.data);    // Calculates current_steering_tire_angle
-  current_state.control_mode_report.mode = control_mode_adapter_to_autoware(
-    received_data->state_report.mode);
-  current_state.twist.heading_rate = current_state.twist.longitudinal_velocity * std::tan(
-    current_state.steering_tire_status_msg.steering_tire_angle) / wheel_base_;  // [rad/s]
+      current_state.steering_wheel_status_msg.data);  // Calculates current_steering_tire_angle
+  current_state.control_mode_report.mode =
+    control_mode_adapter_to_autoware(received_data->state_report.mode);
+  current_state.twist.heading_rate =
+    current_state.twist.longitudinal_velocity *
+    std::tan(current_state.steering_tire_status_msg.steering_tire_angle) / wheel_base_;  // [rad/s]
   current_state.gear_report_msg.report = gear_adapter_to_autoware(received_data->state_report.gear);
   indicator_adapter_to_autoware(received_data->state_report.blinker);
   current_state.debug_str_last = received_data->state_report.debugstr;
@@ -355,7 +346,6 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
 
 void LeoVcuDriver::autoware_to_llc_msg_adapter()
 {
-
   if (current_state.gear_report_msg.report != gear_cmd_ptr_->command) {
     // velocity is low -> the shift can be changed
     if (std::fabs(current_state.twist.longitudinal_velocity) < gear_shift_velocity_threshold) {
@@ -367,7 +357,7 @@ void LeoVcuDriver::autoware_to_llc_msg_adapter()
         static_cast<double>(current_state.twist.longitudinal_velocity));
     }
   }
-  if(take_over_requested_){
+  if (take_over_requested_) {
     send_data.takeover_request = 1;
   } else {
     send_data.takeover_request = 0;
@@ -377,27 +367,26 @@ void LeoVcuDriver::autoware_to_llc_msg_adapter()
   send_data.set_front_wheel_angle_rad_ =
     steering_tire_to_steering_wheel_angle(control_cmd_ptr_->lateral.steering_tire_angle);
   send_data.set_front_wheel_angle_rate_ = steering_tire_to_steering_wheel_angle(
-    control_cmd_ptr_->lateral.steering_tire_angle +
-    control_cmd_ptr_->lateral.steering_tire_rotation_rate) -
-    send_data.set_front_wheel_angle_rad_;
+                                            control_cmd_ptr_->lateral.steering_tire_angle +
+                                            control_cmd_ptr_->lateral.steering_tire_rotation_rate) -
+                                          send_data.set_front_wheel_angle_rad_;
   control_mode_adapter_to_llc();
 }
 
 void LeoVcuDriver::control_mode_adapter_to_llc()
 {
-/* send mode */
+  /* send mode */
 
   if (!engage_cmd_) {
-    send_data.mode_ = 3;     // DISENGAGED. IT IS PRIOR
+    send_data.mode_ = 3;  // DISENGAGED. IT IS PRIOR
   } else if (gate_mode_cmd_ptr->data == tier4_control_msgs::msg::GateMode::AUTO) {
     send_data.mode_ = 1;
   } else if (gate_mode_cmd_ptr->data == tier4_control_msgs::msg::GateMode::EXTERNAL) {
-    send_data.mode_ = 2;     // MANUAL
+    send_data.mode_ = 2;  // MANUAL
   } else {
-    send_data.mode_ = 4;     // NOT READY
+    send_data.mode_ = 4;  // NOT READY
   }
 }
-
 
 uint8_t LeoVcuDriver::control_mode_adapter_to_autoware(uint8_t & input)
 {
@@ -426,8 +415,7 @@ void LeoVcuDriver::indicator_adapter_to_autoware(uint8_t & input)
 }
 
 std::experimental::optional<LlcToCompData> LeoVcuDriver::find_llc_to_comp_msg(
-  const char * data,
-  unsigned int len)
+  const char * data, unsigned int len)
 {
   receive_buffer_.insert(receive_buffer_.end(), data, data + len);
 
@@ -440,19 +428,16 @@ std::experimental::optional<LlcToCompData> LeoVcuDriver::find_llc_to_comp_msg(
   for (size_t i = 0; i < search_range; i++) {
     // Look for frame ids and end-of-frames
     const auto llc_data = reinterpret_cast<LlcToCompData *>(receive_buffer_.data() + i);
-    if (llc_data->frame_id1 == llc_to_comp_msg_frame_id &&
+    if (
+      llc_data->frame_id1 == llc_to_comp_msg_frame_id &&
       llc_data->frame_id2 == llc_to_comp_msg_frame_id &&
-      llc_data->eof_id1 == llc_to_comp_msg_eof_id &&
-      llc_data->eof_id2 == llc_to_comp_msg_eof_id)
-    {
+      llc_data->eof_id1 == llc_to_comp_msg_eof_id && llc_data->eof_id2 == llc_to_comp_msg_eof_id) {
       const uint16_t crc = crc_16(receive_buffer_.data() + i, sizeof(LlcToCompData) - 4);
       if (crc == llc_data->crc) {
         LlcToCompData valid_data{*llc_data};
         receive_buffer_.erase(
           receive_buffer_.begin(),
-          receive_buffer_.begin() +
-          static_cast<long>(i) +
-          sizeof(LlcToCompData));
+          receive_buffer_.begin() + static_cast<long>(i) + sizeof(LlcToCompData));
         return std::experimental::make_optional(valid_data);
       }
     }
@@ -467,11 +452,12 @@ std::vector<char> LeoVcuDriver::pack_serial_data(const CompToLlcData & data)
   return dataVec;
 }
 
-size_t compare(std::vector<float> & vec, double value){
+size_t compare(std::vector<float> & vec, double value)
+{
   double dist = std::numeric_limits<double>::max();
   size_t output = 0;
-  for(size_t i = 0; i < vec.size(); i++){
-    if(dist > abs(vec.at(i) - value)){
+  for (size_t i = 0; i < vec.size(); i++) {
+    if (dist > abs(vec.at(i) - value)) {
       dist = abs(vec.at(i) - value);
       output = i;
     }
@@ -479,48 +465,70 @@ size_t compare(std::vector<float> & vec, double value){
   return output;
 }
 
-float LeoVcuDriver::steering_tire_to_steering_wheel_angle(float input)   // rad input degree output, maybe constants needs re-calculation
-{   // TODO: If input or output is out of boundry, what we will do?
+float LeoVcuDriver::steering_tire_to_steering_wheel_angle(
+  float input)  // rad input degree output, maybe constants needs re-calculation
+{               // TODO: If input or output is out of boundry, what we will do?
   float output = 0.0;
   size_t other_idx = 0;
-  if(input < steering_angle_.at(0)) input = steering_angle_.at(0);
-  if(input > steering_angle_.at(steering_angle_.size() - 1)) input = steering_angle_.at(steering_angle_.size() - 1);
+  if (input < steering_angle_.at(0)) {
+    input = steering_angle_.at(0);
+  }
+  if (input > steering_angle_.at(steering_angle_.size() - 1)) {
+    input = steering_angle_.at(steering_angle_.size() - 1);
+  }
 
   size_t nearest_idx = compare(steering_angle_, input);
 
-  if(input > steering_angle_.at(nearest_idx)) other_idx = nearest_idx + 1;
-  else if(input < steering_angle_.at(nearest_idx)) other_idx = nearest_idx - 1;
-  else other_idx = nearest_idx;
+  if (input > steering_angle_.at(nearest_idx)) {
+    other_idx = nearest_idx + 1;
+  } else if (input < steering_angle_.at(nearest_idx)) {
+    other_idx = nearest_idx - 1;
+  } else {
+    other_idx = nearest_idx;
+  }
 
-  if(other_idx == nearest_idx){
+  if (other_idx == nearest_idx) {
     output = wheel_angle_.at(nearest_idx);
   } else {
-    float ratio = (input - steering_angle_.at(nearest_idx)) / (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
-    output = wheel_angle_.at(nearest_idx) + ratio * (wheel_angle_.at(other_idx) - wheel_angle_.at(nearest_idx));
+    float ratio = (input - steering_angle_.at(nearest_idx)) /
+                  (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
+    output = wheel_angle_.at(nearest_idx) +
+             ratio * (wheel_angle_.at(other_idx) - wheel_angle_.at(nearest_idx));
   }
 
   return -output;
 }
 
-float LeoVcuDriver::steering_wheel_to_steering_tire_angle(float input)   // degree input rad output, maybe constants needs re-calculation
-{   // TODO: If input or output is out of boundry, what we will do?
+float LeoVcuDriver::steering_wheel_to_steering_tire_angle(
+  float input)  // degree input rad output, maybe constants needs re-calculation
+{               // TODO: If input or output is out of boundry, what we will do?
   input = -input;
   float output = 0.0;
   size_t other_idx = 0;
-  if(input < wheel_angle_.at(0)) input = wheel_angle_.at(0);
-  if(input > wheel_angle_.at(wheel_angle_.size() - 1)) input = wheel_angle_.at(wheel_angle_.size() - 1);
+  if (input < wheel_angle_.at(0)) {
+    input = wheel_angle_.at(0);
+  }
+  if (input > wheel_angle_.at(wheel_angle_.size() - 1)) {
+    input = wheel_angle_.at(wheel_angle_.size() - 1);
+  }
 
   size_t nearest_idx = compare(wheel_angle_, input);
 
-  if(input > wheel_angle_.at(nearest_idx)) other_idx = nearest_idx + 1;
-  else if(input < wheel_angle_.at(nearest_idx)) other_idx = nearest_idx - 1;
-  else other_idx = nearest_idx;
+  if (input > wheel_angle_.at(nearest_idx)) {
+    other_idx = nearest_idx + 1;
+  } else if (input < wheel_angle_.at(nearest_idx)) {
+    other_idx = nearest_idx - 1;
+  } else {
+    other_idx = nearest_idx;
+  }
 
-  if(other_idx == nearest_idx){
+  if (other_idx == nearest_idx) {
     output = steering_angle_.at(nearest_idx);
   } else {
-    float ratio = (input - wheel_angle_.at(nearest_idx)) / (wheel_angle_.at(other_idx) - wheel_angle_.at(nearest_idx));
-    output = steering_angle_.at(nearest_idx) + ratio * (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
+    float ratio = (input - wheel_angle_.at(nearest_idx)) /
+                  (wheel_angle_.at(other_idx) - wheel_angle_.at(nearest_idx));
+    output = steering_angle_.at(nearest_idx) +
+             ratio * (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
   }
 
   return output;
@@ -538,14 +546,11 @@ void LeoVcuDriver::llc_publisher()
 
   // control serial is open or not, if not open it.
   if (!serial->isOpen()) {
-
     try {
       LeoVcuDriver::serial->open(serial_name_, 115200);
       serial->setCallback(bind(&LeoVcuDriver::serial_receive_callback, this, _1, _2));
     } catch (boost::system::system_error & e) {
-      RCLCPP_WARN(
-        this->get_logger(), "%s",
-        e.what());
+      RCLCPP_WARN(this->get_logger(), "%s", e.what());
       serial_ready = false;
       return;
     }
@@ -561,23 +566,11 @@ void LeoVcuDriver::llc_publisher()
     return;
   }
 
-
   // check the autoware data is ready
 
   if (!autoware_data_ready()) {
     RCLCPP_WARN_ONCE(get_logger(), "Data from Autoware is not ready!");
-    CompToLlcData serial_dt(send_data.counter_,
-      0.0,
-      0.0,
-      0.0,
-      1,
-      1,
-      1,
-      1,
-      2,
-      0,
-      0, 0
-    );
+    CompToLlcData serial_dt(send_data.counter_, 0.0, 0.0, 0.0, 1, 1, 1, 1, 2, 0, 0, 0);
 
     const auto serialData = pack_serial_data(serial_dt);
     serial->write(serialData);
@@ -596,71 +589,67 @@ void LeoVcuDriver::llc_publisher()
   if (t_out >= 0 && control_cmd_delta_time_ms > t_out) {
     timeouted = true;
   }
-  if(timeouted){
+  if (timeouted) {
     RCLCPP_ERROR(
-      get_logger(), "Emergency Stopping, controller output is timeouted = %d",
-      timeouted);
+      get_logger(), "Emergency Stopping, controller output is timeouted = %d", timeouted);
     is_emergency_ = true;
   }
-  if(take_over_requested_){
+  if (take_over_requested_) {
     RCLCPP_ERROR(
-      get_logger(), "Takeover requested. Soft stop acceleration is publishing. Acceleration: %f", soft_stop_acceleration);
-    send_data.set_long_accel_mps2_ = soft_stop_acceleration;
+      get_logger(), "Takeover requested. Soft stop acceleration is publishing. Acceleration: %f",
+      soft_stop_acceleration);
+    send_data.set_long_accel_mps2_ = -fabs(soft_stop_acceleration);
     send_data.takeover_request = true;
   }
   if (emergency_cmd_ptr->emergency || is_emergency_) {
     send_data.takeover_request = true;
-    if(!prev_emergency){
-      current_emergency_acceleration = soft_stop_acceleration;
+    if (!prev_emergency) {
+      current_emergency_acceleration = -fabs(soft_stop_acceleration);
       prev_emergency = true;
     } else {
-      current_emergency_acceleration += (1/loop_rate_) * add_emergency_acceleration_per_second;
+      current_emergency_acceleration +=
+        (1 / loop_rate_) * (-fabs(add_emergency_acceleration_per_second));
     }
-    send_data.set_long_accel_mps2_ = std::max(current_emergency_acceleration, emergency_stop_acceleration);
+    send_data.set_long_accel_mps2_ =
+      -fabs(std::max(-fabs(current_emergency_acceleration), -fabs(emergency_stop_acceleration)));
     RCLCPP_ERROR(
-      get_logger(), "Emergency Stopping, emergency = %d, acceleration = %f, max_acc = %f, soft_acceleration = %f", emergency_cmd_ptr->emergency, send_data.set_long_accel_mps2_, emergency_stop_acceleration, soft_stop_acceleration);
+      get_logger(),
+      "Emergency Stopping, emergency = %d, acceleration = %f, max_acc = %f, soft_acceleration = "
+      "%f, acceleration per second = %f",
+      emergency_cmd_ptr->emergency, send_data.set_long_accel_mps2_, emergency_stop_acceleration,
+      soft_stop_acceleration, add_emergency_acceleration_per_second);
   } else {
     prev_emergency = false;
-    current_emergency_acceleration = soft_stop_acceleration;
+    current_emergency_acceleration = -fabs(soft_stop_acceleration);
     send_data.takeover_request = false;
   }
 
   /* check the steering wheel angle and steering wheel angle rate limits */
 
-  if (send_data.set_front_wheel_angle_rad_ < min_steering_wheel_angle ||
-    send_data.set_front_wheel_angle_rad_ > max_steering_wheel_angle)
-  {
+  if (
+    send_data.set_front_wheel_angle_rad_ < min_steering_wheel_angle ||
+    send_data.set_front_wheel_angle_rad_ > max_steering_wheel_angle) {
     send_data.set_front_wheel_angle_rad_ = std::min(
       max_steering_wheel_angle,
-      std::max(
-        send_data.set_front_wheel_angle_rad_,
-        min_steering_wheel_angle));
+      std::max(send_data.set_front_wheel_angle_rad_, min_steering_wheel_angle));
   }
 
-  if ((fabsf(send_data.set_front_wheel_angle_rate_) > max_steering_wheel_angle_rate) &&
-    check_steering_angle_rate)
-  {
+  if (
+    (fabsf(send_data.set_front_wheel_angle_rate_) > max_steering_wheel_angle_rate) &&
+    check_steering_angle_rate) {
     send_data.set_front_wheel_angle_rate_ = std::min(
       max_steering_wheel_angle_rate,
-      std::max(
-        send_data.set_front_wheel_angle_rate_,
-        -max_steering_wheel_angle_rate));
+      std::max(send_data.set_front_wheel_angle_rate_, -max_steering_wheel_angle_rate));
   }
 
-  CompToLlcData serial_dt(send_data.counter_,
-    send_data.set_long_accel_mps2_,
-    send_data.set_limit_velocity_mps_,
-    send_data.set_front_wheel_angle_rad_,
-    send_data.blinker_,
-    send_data.headlight_,
-    send_data.wiper_,
-    send_data.gear_,
-    send_data.mode_,
-    send_data.hand_brake,
-    send_data.takeover_request, 0
-  );
+  CompToLlcData serial_dt(
+    send_data.counter_, send_data.set_long_accel_mps2_, send_data.set_limit_velocity_mps_,
+    send_data.set_front_wheel_angle_rad_, send_data.blinker_, send_data.headlight_,
+    send_data.wiper_, send_data.gear_, send_data.mode_, send_data.hand_brake,
+    send_data.takeover_request, 0);
 
-//  RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f", send_data.set_front_wheel_angle_rad_);
+  //  RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f",
+  //  send_data.set_front_wheel_angle_rad_);
   const auto serialData = pack_serial_data(serial_dt);
   serial->write(serialData);
   send_data.counter_++;
@@ -672,25 +661,26 @@ void LeoVcuDriver::indicator_adapter_to_llc()
 {
   /* send turn and hazard commad */
 
-  if (hazard_lights_cmd_ptr_->command ==
-    autoware_auto_vehicle_msgs::msg::HazardLightsCommand::ENABLE)   // It is prior!
+  if (
+    hazard_lights_cmd_ptr_->command ==
+    autoware_auto_vehicle_msgs::msg::HazardLightsCommand::ENABLE)  // It is prior!
   {
     send_data.blinker_ = 4;
-  } else if (turn_indicators_cmd_ptr_->command ==
-    autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ENABLE_LEFT)
-  {
+  } else if (
+    turn_indicators_cmd_ptr_->command ==
+    autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ENABLE_LEFT) {
     send_data.blinker_ = 2;
-  } else if (turn_indicators_cmd_ptr_->command ==
-    autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ENABLE_RIGHT)
-  {
+  } else if (
+    turn_indicators_cmd_ptr_->command ==
+    autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand::ENABLE_RIGHT) {
     send_data.blinker_ = 3;
   } else {
     send_data.blinker_ = 1;
   }
 }
 
-
-uint8_t LeoVcuDriver::gear_adapter_to_autoware(uint8_t & input)  // TODO(berkay): Check here! Maybe we can make it faster!
+uint8_t LeoVcuDriver::gear_adapter_to_autoware(
+  uint8_t & input)  // TODO(berkay): Check here! Maybe we can make it faster!
 {
   switch (input) {
     case 1:
@@ -758,124 +748,135 @@ bool LeoVcuDriver::autoware_data_ready()
 
   return output;
 }
-void LeoVcuDriver::checkPDSSystemError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkPDSSystemError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("pds_system_error", system_error_diagnostics_.pds_system_error);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "PDS system works as expected";
-  if (system_error_diagnostics_.pds_system_error){
+  if (system_error_diagnostics_.pds_system_error) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "PDS system error detected";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkBBWSystemError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkBBWSystemError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("bbw_system_error", system_error_diagnostics_.bbw_system_error);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "BBW system works as expected";
-  if (system_error_diagnostics_.bbw_system_error){
+  if (system_error_diagnostics_.bbw_system_error) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "BBW system error detected";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkEPASSystemError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkEPASSystemError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("epas_system_error", system_error_diagnostics_.epas_system_error);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "EPAS system works as expected";
-  if (system_error_diagnostics_.epas_system_error){
+  if (system_error_diagnostics_.epas_system_error) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "EPAS system error detected";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkPCIgnitionError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkPCIgnitionError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("pc_ignition_error", system_error_diagnostics_.pc_ignition_error);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "PC ignitions received";
-  if (system_error_diagnostics_.pc_ignition_error){
+  if (system_error_diagnostics_.pc_ignition_error) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "PC ignition has not been received";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkEPASPowerError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkEPASPowerError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("epas_pwr_error", system_error_diagnostics_.epas_pwr_error);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "EPAS system powered up";
-  if (system_error_diagnostics_.epas_pwr_error){
+  if (system_error_diagnostics_.epas_pwr_error) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "EPAS power error detected";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkSBWPowerError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkSBWPowerError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("sbw_pwr_error", system_error_diagnostics_.sbw_pwr_error);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "SBW system powered up";
-  if (system_error_diagnostics_.sbw_pwr_error){
+  if (system_error_diagnostics_.sbw_pwr_error) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "SBW power error detected";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkBBWPowerError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkBBWPowerError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("bbw_pwr_error", system_error_diagnostics_.bbw_pwr_error);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "BBW system powered up";
-  if (system_error_diagnostics_.bbw_pwr_error){
+  if (system_error_diagnostics_.bbw_pwr_error) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "BBW power error deteced";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkPCTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkPCTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("pc_timeout", system_error_diagnostics_.pc_timeout);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "PC communication works as expected";
-  if (system_error_diagnostics_.pc_timeout){
+  if (system_error_diagnostics_.pc_timeout) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "PC timeout";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkBCUTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkBCUTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("bcu_timeout", system_error_diagnostics_.bcu_timeout);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "Volt BCU communication works as expected";
-  if (system_error_diagnostics_.bcu_timeout){
+  if (system_error_diagnostics_.bcu_timeout) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "Volt BCU timeout";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkPDSTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkPDSTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("pds_timeout", system_error_diagnostics_.pds_timeout);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "LEO PDS communication works as expected";
-  if (system_error_diagnostics_.pds_timeout){
+  if (system_error_diagnostics_.pds_timeout) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "LEO PDS timeout";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkEPASTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkEPASTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("epas_timeout", system_error_diagnostics_.epas_timeout);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "EPAS communication works as expected";
-  if (system_error_diagnostics_.epas_timeout){
+  if (system_error_diagnostics_.epas_timeout) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "EPAS timeout";
   }
   stat.summary(diag_level, diag_message);
 }
-void LeoVcuDriver::checkBBWTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+void LeoVcuDriver::checkBBWTimeoutError(diagnostic_updater::DiagnosticStatusWrapper & stat)
+{
   stat.add("bbw_timeout", system_error_diagnostics_.bbw_timeout);
   int8_t diag_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string diag_message = "BBW communication works as expected";
-  if (system_error_diagnostics_.bbw_timeout){
+  if (system_error_diagnostics_.bbw_timeout) {
     diag_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     diag_message = "BBW timeout";
   }
   stat.summary(diag_level, diag_message);
 }
-
