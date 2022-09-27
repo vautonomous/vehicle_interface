@@ -75,7 +75,10 @@ LeoVcuDriver::LeoVcuDriver()
     std::bind(&LeoVcuDriver::emergency_cmd_callback, this, _1));
   emergency_state_sub_ = this->create_subscription<autoware_auto_system_msgs::msg::EmergencyState>(
     "/system/emergency/emergency_state", 1, std::bind(&LeoVcuDriver::onEmergencyState, this, _1));
-
+  sub_hazard_status_stamped_ =
+    create_subscription<autoware_auto_system_msgs::msg::HazardStatusStamped>(
+      "/system/emergency/hazard_status", rclcpp::QoS{1},
+      std::bind(&LeoVcuDriver::onHazardStatusStamped, this, _1));
   /* publisher */
 
   // To Autoware
@@ -118,6 +121,11 @@ LeoVcuDriver::LeoVcuDriver()
     this, get_clock(), period_ns, std::bind(&LeoVcuDriver::llc_publisher, this));
   serial = new CallbackAsyncSerial;
   current_emergency_acceleration = -std::fabs(soft_stop_acceleration);
+}
+void LeoVcuDriver::onHazardStatusStamped(
+  const autoware_auto_system_msgs::msg::HazardStatusStamped::ConstSharedPtr msg)
+{
+  hazard_status_stamped_ = msg;
 }
 
 void LeoVcuDriver::ctrl_cmd_callback(
@@ -616,6 +624,27 @@ void LeoVcuDriver::llc_publisher()
 
   if (emergency_send) {
     send_data.takeover_request = true;
+    RCLCPP_ERROR(get_logger(), "~EMERGENCY~");
+    RCLCPP_ERROR(get_logger(), "Single Point Faults: ");
+    for (const auto & diag : hazard_status_stamped_->status.diag_single_point_fault) {
+      RCLCPP_ERROR(
+        get_logger(),
+        "level: %hhu"
+        "name: %s"
+        "hardware_id: %s"
+        "message: %s",
+        diag.level, diag.name.c_str(), diag.hardware_id.c_str(), diag.message.c_str());
+    }
+    RCLCPP_ERROR(get_logger(), "Latent Faults: ");
+    for (const auto & diag : hazard_status_stamped_->status.diag_latent_fault) {
+      RCLCPP_ERROR(
+        get_logger(),
+        "level: %hhu"
+        "name: %s"
+        "hardware_id: %s"
+        "message: %s",
+        diag.level, diag.name.c_str(), diag.hardware_id.c_str(), diag.message.c_str());
+    }
     if (!prev_emergency) {
       current_emergency_acceleration = -std::fabs(soft_stop_acceleration);
       prev_emergency = true;

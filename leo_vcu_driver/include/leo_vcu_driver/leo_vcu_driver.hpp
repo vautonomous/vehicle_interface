@@ -29,6 +29,7 @@
 
 #include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
 #include <autoware_auto_system_msgs/msg/emergency_state.hpp>
+#include <autoware_auto_system_msgs/msg/hazard_status_stamped.hpp>
 #include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
 #include <autoware_auto_vehicle_msgs/msg/engage.hpp>
 #include <autoware_auto_vehicle_msgs/msg/gear_command.hpp>
@@ -39,6 +40,7 @@
 #include <autoware_auto_vehicle_msgs/msg/turn_indicators_command.hpp>
 #include <autoware_auto_vehicle_msgs/msg/turn_indicators_report.hpp>
 #include <autoware_auto_vehicle_msgs/msg/velocity_report.hpp>
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <tier4_control_msgs/msg/gate_mode.hpp>
 #include <tier4_vehicle_msgs/msg/actuation_command_stamped.hpp>
@@ -164,6 +166,9 @@ public:
    */
   void onEmergencyState(autoware_auto_system_msgs::msg::EmergencyState::ConstSharedPtr msg);
 
+  void onHazardStatusStamped(
+    const autoware_auto_system_msgs::msg::HazardStatusStamped::ConstSharedPtr msg);
+
 private:
   std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(
     const char * data, unsigned int len);
@@ -234,6 +239,7 @@ private:
 
   /* Variables */
   rclcpp::Time control_command_received_time_;
+  autoware_auto_system_msgs::msg::HazardStatusStamped::ConstSharedPtr hazard_status_stamped_;
 
   // Current state of vehicle (Got from LLC)
 
@@ -266,6 +272,8 @@ private:
   rclcpp::Subscription<tier4_control_msgs::msg::GateMode>::ConstSharedPtr gate_mode_sub_;
   rclcpp::Subscription<autoware_auto_system_msgs::msg::EmergencyState>::SharedPtr
     emergency_state_sub_;
+  rclcpp::Subscription<autoware_auto_system_msgs::msg::HazardStatusStamped>::SharedPtr
+    sub_hazard_status_stamped_;
 
   /* publishers */
 
