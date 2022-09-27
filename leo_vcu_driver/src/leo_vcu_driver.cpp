@@ -48,6 +48,8 @@ LeoVcuDriver::LeoVcuDriver()
   soft_stop_acceleration = declare_parameter("soft_stop_acceleration", -1.5);
   add_emergency_acceleration_per_second =
     declare_parameter("add_emergency_acceleration_per_second", -0.5);
+  enable_emergency = declare_parameter("enable_emergency", true);
+  enable_cmd_timeout_emergency = declare_parameter("enable_cmd_timeout_emergency", true);
 
   /* Subscribers */
 
@@ -536,6 +538,8 @@ float LeoVcuDriver::steering_wheel_to_steering_tire_angle(
 
 void LeoVcuDriver::llc_publisher()
 {
+  bool emergency_send{false};
+
   // TODO(brkay54): Check the jerk data is enabled?
   const rclcpp::Time current_time = get_clock()->now();
   if (!serial_ready) {
@@ -582,6 +586,12 @@ void LeoVcuDriver::llc_publisher()
 
   /* check emergency and timeout */
 
+  if (emergency_cmd_ptr->emergency || is_emergency_) {
+    if (enable_emergency) {
+      emergency_send = true;
+    }
+  }
+
   const double control_cmd_delta_time_ms =
     (current_time - control_command_received_time_).seconds() * 1000.0;
   bool timeouted = false;
@@ -589,19 +599,22 @@ void LeoVcuDriver::llc_publisher()
   if (t_out >= 0 && control_cmd_delta_time_ms > t_out) {
     timeouted = true;
   }
+
   if (timeouted) {
     RCLCPP_ERROR(
       get_logger(), "Emergency Stopping, controller output is timeouted = %d", timeouted);
-    is_emergency_ = true;
+    if (enable_cmd_timeout_emergency) {
+      emergency_send = true;
+    }
   }
+
   if (take_over_requested_) {
-    RCLCPP_ERROR(
-      get_logger(), "Takeover requested. Soft stop acceleration is publishing. Acceleration: %f",
-      soft_stop_acceleration);
-    send_data.set_long_accel_mps2_ = -std::fabs(soft_stop_acceleration);
+    // describe later the take over request behaviour
+    RCLCPP_ERROR(get_logger(), "Takeover requested.");
     send_data.takeover_request = true;
   }
-  if (emergency_cmd_ptr->emergency || is_emergency_) {
+
+  if (emergency_send) {
     send_data.takeover_request = true;
     if (!prev_emergency) {
       current_emergency_acceleration = -std::fabs(soft_stop_acceleration);
@@ -610,8 +623,8 @@ void LeoVcuDriver::llc_publisher()
       current_emergency_acceleration +=
         (1 / loop_rate_) * (-std::fabs(add_emergency_acceleration_per_second));
     }
-    send_data.set_long_accel_mps2_ =
-      -std::fabs(std::max(-std::fabs(current_emergency_acceleration), -std::fabs(emergency_stop_acceleration)));
+    send_data.set_long_accel_mps2_ = -std::fabs(std::max(
+      -std::fabs(current_emergency_acceleration), -std::fabs(emergency_stop_acceleration)));
     RCLCPP_ERROR(
       get_logger(),
       "Emergency Stopping, emergency = %d, acceleration = %f, max_acc = %f, soft_acceleration = "

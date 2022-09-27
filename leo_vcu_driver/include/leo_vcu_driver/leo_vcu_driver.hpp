@@ -303,6 +303,8 @@ private:
   bool check_steering_angle_rate{};
   float soft_stop_acceleration{};                 // [m/s^2]
   float add_emergency_acceleration_per_second{};  // [m/s^3]
+  bool enable_emergency{};
+  bool enable_cmd_timeout_emergency{};
 
   // Diagnostic Updater Object
   diagnostic_updater::Updater updater_;
