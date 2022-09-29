@@ -313,6 +313,7 @@ private:
   float add_emergency_acceleration_per_second{};  // [m/s^3]
   bool enable_emergency{};
   bool enable_cmd_timeout_emergency{};
+  bool enable_debugger{};
 
   // Diagnostic Updater Object
   diagnostic_updater::Updater updater_;

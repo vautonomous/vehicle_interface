@@ -50,6 +50,7 @@ LeoVcuDriver::LeoVcuDriver()
     declare_parameter("add_emergency_acceleration_per_second", -0.5);
   enable_emergency = declare_parameter("enable_emergency", true);
   enable_cmd_timeout_emergency = declare_parameter("enable_cmd_timeout_emergency", true);
+  enable_debugger = declare_parameter("enable_debugger", true);
 
   /* Subscribers */
 
@@ -133,8 +134,11 @@ void LeoVcuDriver::ctrl_cmd_callback(
 {
   control_command_received_time_ = this->now();
   control_cmd_ptr_ = msg;
-  //  RCLCPP_INFO(get_logger(), "target steering degree: %f",
-  //  control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
+  if(enable_debugger){
+    RCLCPP_INFO(
+      get_logger(), "target steering degree: %f",
+      control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
+  }
 }
 
 void LeoVcuDriver::onEmergencyState(
@@ -284,10 +288,13 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
       }
     }
   }
-//  RCLCPP_INFO(
-//    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d",
-//    received_data->state_report.motion_allow, received_data->state_report.ready,
-//    received_data->state_report.intervention);
+  if(enable_debugger){
+    RCLCPP_INFO(
+      this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d",
+      received_data->state_report.motion_allow, received_data->state_report.ready,
+      received_data->state_report.intervention);
+  }
+
 
   // Message adapter
   llc_to_autoware_msg_adapter(received_data);
@@ -606,7 +613,7 @@ void LeoVcuDriver::llc_publisher()
 
   if (timeouted) {
     RCLCPP_ERROR(
-      get_logger(), "Emergency Stopping, controller output is timeouted = %d", timeouted);
+      get_logger(), "Emergency Stopping, controller output is timeouted = %f ms", control_cmd_delta_time_ms);
     if (enable_cmd_timeout_emergency) {
       emergency_send = true;
     }
@@ -685,9 +692,12 @@ void LeoVcuDriver::llc_publisher()
     send_data.set_front_wheel_angle_rad_, send_data.blinker_, send_data.headlight_,
     send_data.wiper_, send_data.gear_, send_data.mode_, send_data.hand_brake,
     send_data.takeover_request, 0);
+  if(enable_debugger){
+    RCLCPP_INFO(get_logger(), "send steering wheel angle: %f\n"
+                "send acceleration: %f",
+                send_data.set_front_wheel_angle_rad_, send_data.set_long_accel_mps2_);
+  }
 
-  //  RCLCPP_INFO(get_logger(), "steering wheel angle to send: %f",
-  //  send_data.set_front_wheel_angle_rad_);
   const auto serialData = pack_serial_data(serial_dt);
   serial->write(serialData);
   send_data.counter_++;
