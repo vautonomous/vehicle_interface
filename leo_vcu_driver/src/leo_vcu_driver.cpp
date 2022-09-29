@@ -284,10 +284,10 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
       }
     }
   }
-  RCLCPP_INFO(
-    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d",
-    received_data->state_report.motion_allow, received_data->state_report.ready,
-    received_data->state_report.intervention);
+//  RCLCPP_INFO(
+//    this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d",
+//    received_data->state_report.motion_allow, received_data->state_report.ready,
+//    received_data->state_report.intervention);
 
   // Message adapter
   llc_to_autoware_msg_adapter(received_data);
@@ -400,14 +400,10 @@ void LeoVcuDriver::control_mode_adapter_to_llc()
 
 uint8_t LeoVcuDriver::control_mode_adapter_to_autoware(uint8_t & input)
 {
-  if (input == 3) {
-    return autoware_auto_vehicle_msgs::msg::ControlModeReport::DISENGAGED;
-  } else if (input == 1) {
+  if (input == 1) {
     return autoware_auto_vehicle_msgs::msg::ControlModeReport::AUTONOMOUS;
-  } else if (input == 2) {
+  } else if (input == 0 || input == 2) {
     return autoware_auto_vehicle_msgs::msg::ControlModeReport::MANUAL;
-  } else if (input == 4) {
-    return autoware_auto_vehicle_msgs::msg::ControlModeReport::NOT_READY;
   } else {
     return autoware_auto_vehicle_msgs::msg::ControlModeReport::NO_COMMAND;
   }
@@ -624,14 +620,14 @@ void LeoVcuDriver::llc_publisher()
 
   if (emergency_send) {
     send_data.takeover_request = true;
-    RCLCPP_ERROR(get_logger(), "~EMERGENCY~");
-    RCLCPP_ERROR(get_logger(), "Single Point Faults: ");
+    RCLCPP_ERROR(get_logger(), "~EMERGENCY~\n");
+    RCLCPP_ERROR(get_logger(), "Single Point Faults: \n");
     for (const auto & diag : hazard_status_stamped_->status.diag_single_point_fault) {
       RCLCPP_ERROR(
         get_logger(),
-        "level: %hhu"
-        "name: %s"
-        "hardware_id: %s"
+        "level: %hhu\n"
+        "name: %s\n"
+        "hardware_id: %s\n"
         "message: %s",
         diag.level, diag.name.c_str(), diag.hardware_id.c_str(), diag.message.c_str());
     }
@@ -639,9 +635,9 @@ void LeoVcuDriver::llc_publisher()
     for (const auto & diag : hazard_status_stamped_->status.diag_latent_fault) {
       RCLCPP_ERROR(
         get_logger(),
-        "level: %hhu"
-        "name: %s"
-        "hardware_id: %s"
+        "level: %hhu\n"
+        "name: %s\n"
+        "hardware_id: %s\n"
         "message: %s",
         diag.level, diag.name.c_str(), diag.hardware_id.c_str(), diag.message.c_str());
     }
@@ -657,7 +653,7 @@ void LeoVcuDriver::llc_publisher()
     RCLCPP_ERROR(
       get_logger(),
       "Emergency Stopping, emergency = %d, acceleration = %f, max_acc = %f, soft_acceleration = "
-      "%f, acceleration per second = %f",
+      "%f, acceleration per second = %f\n",
       emergency_cmd_ptr->emergency, send_data.set_long_accel_mps2_, emergency_stop_acceleration,
       soft_stop_acceleration, add_emergency_acceleration_per_second);
   } else {
