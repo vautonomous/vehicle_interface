@@ -628,7 +628,7 @@ void LeoVcuDriver::llc_publisher()
   if (emergency_send) {
     send_data.takeover_request = true;
     RCLCPP_ERROR(get_logger(), "~EMERGENCY~\n");
-    RCLCPP_ERROR(get_logger(), "Single Point Faults: \n");
+    RCLCPP_ERROR(get_logger(), "Single Point Faults: Emergency hold: %d\n", hazard_status_stamped_->status.emergency_holding);
     for (const auto & diag : hazard_status_stamped_->status.diag_single_point_fault) {
       RCLCPP_ERROR(
         get_logger(),
@@ -638,7 +638,7 @@ void LeoVcuDriver::llc_publisher()
         "message: %s",
         diag.level, diag.name.c_str(), diag.hardware_id.c_str(), diag.message.c_str());
     }
-    RCLCPP_ERROR(get_logger(), "Latent Faults: ");
+    RCLCPP_ERROR(get_logger(), "Latent Faults: Emergency hold: %d\n", hazard_status_stamped_->status.emergency_holding);
     for (const auto & diag : hazard_status_stamped_->status.diag_latent_fault) {
       RCLCPP_ERROR(
         get_logger(),
