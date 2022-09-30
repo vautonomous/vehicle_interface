@@ -65,7 +65,7 @@ LeoVcuDriver::LeoVcuDriver()
       std::bind(&LeoVcuDriver::turn_indicators_cmd_callback, this, _1));
   hazard_lights_cmd_sub_ =
     create_subscription<autoware_auto_vehicle_msgs::msg::HazardLightsCommand>(
-      "/control/command/hazard_lights_cmd", rclcpp::QoS{1},
+      "/system/emergency/hazard_lights_cmd", rclcpp::QoS{1},
       std::bind(&LeoVcuDriver::hazard_lights_cmd_callback, this, _1));
   engage_cmd_sub_ = create_subscription<autoware_auto_vehicle_msgs::msg::Engage>(
     "/vehicle/engage", rclcpp::QoS{1}, std::bind(&LeoVcuDriver::engage_cmd_callback, this, _1));
