@@ -314,6 +314,7 @@ private:
   bool enable_emergency{};
   bool enable_cmd_timeout_emergency{};
   bool enable_debugger{};
+  float steering_offset{0.0};
 
   // Diagnostic Updater Object
   diagnostic_updater::Updater updater_;

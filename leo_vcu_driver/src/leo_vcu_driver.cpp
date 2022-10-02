@@ -45,12 +45,13 @@ LeoVcuDriver::LeoVcuDriver()
   max_steering_wheel_angle_rate =
     static_cast<float>(declare_parameter("max_steering_wheel_angle_rate", 300.0));
   check_steering_angle_rate = declare_parameter("check_steering_angle_rate", true);
-  soft_stop_acceleration = declare_parameter("soft_stop_acceleration", -1.5);
+  soft_stop_acceleration = static_cast<float>(declare_parameter("soft_stop_acceleration", -1.5));
   add_emergency_acceleration_per_second =
-    declare_parameter("add_emergency_acceleration_per_second", -0.5);
+    static_cast<float>(declare_parameter("add_emergency_acceleration_per_second", -0.5));
   enable_emergency = declare_parameter("enable_emergency", true);
   enable_cmd_timeout_emergency = declare_parameter("enable_cmd_timeout_emergency", true);
   enable_debugger = declare_parameter("enable_debugger", true);
+  steering_offset = static_cast<float>(declare_parameter("steering_offset", 0.0));
 
   /* Subscribers */
 
@@ -481,6 +482,7 @@ size_t compare(std::vector<float> & vec, double value)
 float LeoVcuDriver::steering_tire_to_steering_wheel_angle(
   float input)  // rad input degree output, maybe constants needs re-calculation
 {               // TODO: If input or output is out of boundry, what we will do?
+  input = input - steering_offset;
   float output = 0.0;
   size_t other_idx = 0;
   if (input < steering_angle_.at(0)) {
@@ -543,8 +545,7 @@ float LeoVcuDriver::steering_wheel_to_steering_tire_angle(
     output = steering_angle_.at(nearest_idx) +
              ratio * (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
   }
-
-  return output;
+  return std::clamp(output + steering_offset,steering_angle_.at(0),steering_angle_.back());
 }
 
 void LeoVcuDriver::llc_publisher()
