@@ -735,7 +735,7 @@ uint8_t LeoVcuDriver::gear_adapter_to_autoware(
     case 1:
       return 2;
     case 2:
-      return 0;
+      return 20;
     case 3:
       return 22;
     case 4:
