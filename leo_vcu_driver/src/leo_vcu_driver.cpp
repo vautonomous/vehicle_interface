@@ -81,6 +81,9 @@ LeoVcuDriver::LeoVcuDriver()
     create_subscription<autoware_auto_system_msgs::msg::HazardStatusStamped>(
       "/system/emergency/hazard_status", rclcpp::QoS{1},
       std::bind(&LeoVcuDriver::onHazardStatusStamped, this, _1));
+  autoware_state_sub_ = create_subscription<autoware_auto_system_msgs::msg::AutowareState>(
+    "/autoware/state", rclcpp::QoS(1), std::bind(&LeoVcuDriver::onAutowareState, this, _1));
+
   /* publisher */
 
   // To Autoware
@@ -930,4 +933,15 @@ void LeoVcuDriver::checkBBWTimeoutError(diagnostic_updater::DiagnosticStatusWrap
     diag_message = "BBW timeout";
   }
   stat.summary(diag_level, diag_message);
+}
+
+void LeoVcuDriver::onAutowareState(const autoware_auto_system_msgs::msg::AutowareState::SharedPtr message)
+{
+  using autoware_auto_system_msgs::msg::AutowareState;
+
+  if(message->state == AutowareState::DRIVING){
+    send_data.hand_brake = 0;
+  } else {
+    send_data.hand_brake = 1;
+  }
 }
