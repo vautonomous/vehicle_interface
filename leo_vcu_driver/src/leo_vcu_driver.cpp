@@ -292,6 +292,7 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
       }
     }
   }
+  system_error_diagnostics_ = latest_system_error;
   if(enable_debugger){
     RCLCPP_INFO(
       this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d",
