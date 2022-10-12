@@ -15,4 +15,4 @@
     enable_emergency: true
     enable_cmd_timeout_emergency: true
     enable_debugger: false
-    steering_offset: 0.0044
+    steering_offset: -0.0015
