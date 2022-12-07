@@ -26,6 +26,7 @@
 #include <leo_vcu_driver/visibility_control.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <vehicle_info_util/vehicle_info_util.hpp>
+#include <tier4_api_utils/tier4_api_utils.hpp>
 
 #include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
 #include <autoware_auto_system_msgs/msg/emergency_state.hpp>
@@ -48,6 +49,9 @@
 #include <tier4_vehicle_msgs/msg/actuation_status_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/steering_wheel_status_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/vehicle_emergency_stamped.hpp>
+#include <tier4_api_msgs/msg/door_status.hpp>
+#include <tier4_external_api_msgs/srv/set_door.hpp>
+
 
 #include <leo_vcu_driver/AsyncSerial.h>
 #include <leo_vcu_driver/checksum.h>
@@ -127,6 +131,11 @@ public:
    */
   float steering_wheel_to_steering_tire_angle(float input);
   /**
+   * @brief It converts the door status which is taken from LLC wrt Autoware Universe messages.
+   */
+  tier4_api_msgs::msg::DoorStatus door_report_to_autoware(uint8_t & input);
+
+  /**
    * @brief It converts the gear data which is taken from LLC wrt Autoware Universe messages.
    */
   uint8_t gear_adapter_to_autoware(uint8_t & input);
@@ -171,6 +180,10 @@ public:
     const autoware_auto_system_msgs::msg::HazardStatusStamped::ConstSharedPtr msg);
 
   void onAutowareState(const autoware_auto_system_msgs::msg::AutowareState::SharedPtr message);
+
+  void setDoor(
+    const tier4_external_api_msgs::srv::SetDoor::Request::SharedPtr request,
+    const tier4_external_api_msgs::srv::SetDoor::Response::SharedPtr response);
 
 private:
   std::experimental::optional<LlcToCompData> find_llc_to_comp_msg(
@@ -295,6 +308,11 @@ private:
   rclcpp::Publisher<tier4_vehicle_msgs::msg::SteeringWheelStatusStamped>::SharedPtr
     steering_wheel_status_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr llc_error_pub_;
+  rclcpp::Publisher<tier4_api_msgs::msg::DoorStatus>::SharedPtr door_status_pub_;
+
+  // Services
+
+  tier4_api_utils::Service<tier4_external_api_msgs::srv::SetDoor>::SharedPtr srv_;
 
   // Timer
   rclcpp::TimerBase::SharedPtr tim_data_sender_;

@@ -105,6 +105,13 @@ LeoVcuDriver::LeoVcuDriver()
       "/vehicle/status/steering_wheel_status", 1);
   llc_error_pub_ = create_publisher<std_msgs::msg::String>("/interface/status/llc_status", 1);
 
+  // Services
+  //  From autoware
+  tier4_api_utils::ServiceProxyNodeInterface proxy(this);
+  srv_ = proxy.create_service<tier4_external_api_msgs::srv::SetDoor>(
+    "/api/vehicle/set/door",
+    std::bind(&LeoVcuDriver::setDoor, this, std::placeholders::_1, std::placeholders::_2));
+
   // System error diagnostic
   updater_.setHardwareID("vehicle_error_monitor");
   updater_.add("pds_system_error", this, &LeoVcuDriver::checkPDSSystemError);
@@ -138,7 +145,7 @@ void LeoVcuDriver::ctrl_cmd_callback(
 {
   control_command_received_time_ = this->now();
   control_cmd_ptr_ = msg;
-  if(enable_debugger){
+  if (enable_debugger) {
     RCLCPP_INFO(
       get_logger(), "target steering degree: %f",
       control_cmd_ptr_->lateral.steering_tire_angle * 180.0 / M_PI);
@@ -293,13 +300,12 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
     }
   }
   system_error_diagnostics_ = latest_system_error;
-  if(enable_debugger){
+  if (enable_debugger) {
     RCLCPP_INFO(
       this->get_logger(), "Motion allow: %d, Ready: %d, Intervention: %d",
       received_data->state_report.motion_allow, received_data->state_report.ready,
       received_data->state_report.intervention);
   }
-
 
   // Message adapter
   llc_to_autoware_msg_adapter(received_data);
@@ -345,6 +351,11 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
     current_state.hazard_msg.stamp = header.stamp;
     hazard_lights_status_pub_->publish(current_state.hazard_msg);
   }
+  /* publish current door status */
+  {
+    // TODO: check the door status variables again
+    door_status_pub_->publish(current_state.door_status_msg);
+  }
 }
 
 void LeoVcuDriver::llc_to_autoware_msg_adapter(
@@ -364,6 +375,7 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
   current_state.gear_report_msg.report = gear_adapter_to_autoware(received_data->state_report.gear);
   indicator_adapter_to_autoware(received_data->state_report.blinker);
   current_state.debug_str_last = received_data->state_report.debugstr;
+  current_state.door_status_msg = door_report_to_autoware(received_data->state_report.door);
 }
 
 void LeoVcuDriver::autoware_to_llc_msg_adapter()
@@ -549,7 +561,7 @@ float LeoVcuDriver::steering_wheel_to_steering_tire_angle(
     output = steering_angle_.at(nearest_idx) +
              ratio * (steering_angle_.at(other_idx) - steering_angle_.at(nearest_idx));
   }
-  return std::clamp(output + steering_offset,steering_angle_.at(0),steering_angle_.back());
+  return std::clamp(output + steering_offset, steering_angle_.at(0), steering_angle_.back());
 }
 
 void LeoVcuDriver::llc_publisher()
@@ -590,7 +602,7 @@ void LeoVcuDriver::llc_publisher()
 
   if (!autoware_data_ready()) {
     RCLCPP_WARN_ONCE(get_logger(), "Data from Autoware is not ready!");
-    CompToLlcData serial_dt(send_data.counter_, 0.0, 0.0, 0.0, 1, 1, 1, 1, 2, 0, 0, 0);
+    CompToLlcData serial_dt(send_data.counter_, 0.0, 0.0, 0.0, 0, 1, 1, 1, 1, 2, 0, 0, 0);
 
     const auto serialData = pack_serial_data(serial_dt);
     serial->write(serialData);
@@ -618,7 +630,8 @@ void LeoVcuDriver::llc_publisher()
 
   if (timeouted) {
     RCLCPP_ERROR(
-      get_logger(), "Emergency Stopping, controller output is timeouted = %f ms", control_cmd_delta_time_ms);
+      get_logger(), "Emergency Stopping, controller output is timeouted = %f ms",
+      control_cmd_delta_time_ms);
     if (enable_cmd_timeout_emergency) {
       emergency_send = true;
     }
@@ -633,7 +646,9 @@ void LeoVcuDriver::llc_publisher()
   if (emergency_send) {
     send_data.takeover_request = true;
     RCLCPP_ERROR(get_logger(), "~EMERGENCY~\n");
-    RCLCPP_ERROR(get_logger(), "Single Point Faults: Emergency hold: %d\n", hazard_status_stamped_->status.emergency_holding);
+    RCLCPP_ERROR(
+      get_logger(), "Single Point Faults: Emergency hold: %d\n",
+      hazard_status_stamped_->status.emergency_holding);
     for (const auto & diag : hazard_status_stamped_->status.diag_single_point_fault) {
       RCLCPP_ERROR(
         get_logger(),
@@ -643,7 +658,9 @@ void LeoVcuDriver::llc_publisher()
         "message: %s",
         diag.level, diag.name.c_str(), diag.hardware_id.c_str(), diag.message.c_str());
     }
-    RCLCPP_ERROR(get_logger(), "Latent Faults: Emergency hold: %d\n", hazard_status_stamped_->status.emergency_holding);
+    RCLCPP_ERROR(
+      get_logger(), "Latent Faults: Emergency hold: %d\n",
+      hazard_status_stamped_->status.emergency_holding);
     for (const auto & diag : hazard_status_stamped_->status.diag_latent_fault) {
       RCLCPP_ERROR(
         get_logger(),
@@ -694,13 +711,15 @@ void LeoVcuDriver::llc_publisher()
 
   CompToLlcData serial_dt(
     send_data.counter_, send_data.set_long_accel_mps2_, send_data.set_limit_velocity_mps_,
-    send_data.set_front_wheel_angle_rad_, send_data.blinker_, send_data.headlight_,
+    send_data.set_front_wheel_angle_rad_, send_data.door_, send_data.blinker_, send_data.headlight_,
     send_data.wiper_, send_data.gear_, send_data.mode_, send_data.hand_brake,
     send_data.takeover_request, 0);
-  if(enable_debugger){
-    RCLCPP_INFO(get_logger(), "send steering wheel angle: %f\n"
-                "send acceleration: %f",
-                send_data.set_front_wheel_angle_rad_, send_data.set_long_accel_mps2_);
+  if (enable_debugger) {
+    RCLCPP_INFO(
+      get_logger(),
+      "send steering wheel angle: %f\n"
+      "send acceleration: %f",
+      send_data.set_front_wheel_angle_rad_, send_data.set_long_accel_mps2_);
   }
 
   const auto serialData = pack_serial_data(serial_dt);
@@ -708,6 +727,20 @@ void LeoVcuDriver::llc_publisher()
   send_data.counter_++;
 
   updater_.force_update();
+}
+
+tier4_api_msgs::msg::DoorStatus LeoVcuDriver::door_report_to_autoware(uint8_t & input)
+{
+  tier4_api_msgs::msg::DoorStatus door_status;
+  if (input == 0) {
+    door_status.status = tier4_api_msgs::msg::DoorStatus::DOOR_CLOSED;
+  } else if (input == 1) {
+    door_status.status = tier4_api_msgs::msg::DoorStatus::DOOR_OPENED;
+  } else {
+    door_status.status = tier4_api_msgs::msg::DoorStatus::UNKNOWN;
+  }
+
+  return door_status;
 }
 
 void LeoVcuDriver::indicator_adapter_to_llc()
@@ -936,13 +969,38 @@ void LeoVcuDriver::checkBBWTimeoutError(diagnostic_updater::DiagnosticStatusWrap
   stat.summary(diag_level, diag_message);
 }
 
-void LeoVcuDriver::onAutowareState(const autoware_auto_system_msgs::msg::AutowareState::SharedPtr message)
+void LeoVcuDriver::onAutowareState(
+  const autoware_auto_system_msgs::msg::AutowareState::SharedPtr message)
 {
   using autoware_auto_system_msgs::msg::AutowareState;
 
-  if(message->state == AutowareState::DRIVING){
+  if (message->state == AutowareState::DRIVING) {
     send_data.hand_brake = 0;
   } else {
     send_data.hand_brake = 1;
+  }
+}
+
+void LeoVcuDriver::setDoor(
+  const tier4_external_api_msgs::srv::SetDoor::Request::SharedPtr request,
+  const tier4_external_api_msgs::srv::SetDoor::Response::SharedPtr response)
+{
+  if (
+    current_state.control_mode_report.mode !=
+    autoware_auto_vehicle_msgs::msg::ControlModeReport::AUTONOMOUS) {
+    // when the vehicle mode is not autonomous, ignore the request.
+    response->status.code = tier4_external_api_msgs::msg::ResponseStatus::IGNORED;
+    response->status.message = "Current vehicle mode is not autonomous. The request is ignored.";
+    return;
+  }
+
+  if (request->open) {
+    // open the door
+    send_data.door_ = 1;
+    response->status.message = "Success to open the door.";
+  } else {
+    // close the door
+    send_data.door_ = 0;
+    response->status.message = "Success to close the door.";
   }
 }
