@@ -31,6 +31,12 @@ const uint8_t llc_to_comp_msg_frame_id{99U};
 const uint8_t llc_to_comp_msg_eof_id{100U};
 
 // added for universe
+
+struct DoorStatus_
+{
+  uint8_t front_door;
+  uint8_t rear_door;
+};
 struct vehicle_current_state_
 {
   autoware_auto_vehicle_msgs::msg::VelocityReport twist;
@@ -49,8 +55,7 @@ struct CompToLlcData_
   float set_long_accel_mps2_{};
   float set_limit_velocity_mps_{};
   float set_front_wheel_angle_rad_{};
-  float set_front_wheel_angle_rate_{};
-  uint8_t door_{0};  // 0: close, 1: open
+  DoorStatus_ door_;
   uint8_t blinker_{};
   uint8_t headlight_{1};
   uint8_t wiper_{1};
@@ -66,7 +71,6 @@ struct CompToLlcData_
 struct StateReport_
 {
   uint8_t fuel;
-  uint8_t door;  // 0: close, 1: open
   uint8_t blinker;
   uint8_t headlight;
   uint8_t wiper;
@@ -77,9 +81,9 @@ struct StateReport_
   uint8_t intervention;
   uint8_t ready;
   uint8_t motion_allow;
-  uint8_t throttle;     // %
-  uint8_t brake;        // %
-  int16_t front_steer;  // degree
+  uint8_t throttle;  // %
+  uint8_t brake;     // %
+  DoorStatus_ door_status;
   char debugstr[24];
 };
 
@@ -107,12 +111,10 @@ struct VehicleControlCommand_
   float set_long_accel_mps2;
   float set_limit_velocity_mps;
   float set_front_wheel_angle_rad;
-  //  float set_front_wheel_angle_rate_;
 };
 
 struct VehicleStateCommand_
 {
-  uint8_t door;
   uint8_t blinker;
   uint8_t headlight;
   uint8_t wiper;
@@ -120,46 +122,27 @@ struct VehicleStateCommand_
   uint8_t mode;
   uint8_t hand_brake;        // bool
   uint8_t takeover_request;  // bool
-  uint8_t rsv;
+  DoorStatus_ door;
 };
 
 struct CompToLlcData
 {
   explicit CompToLlcData(
-    uint32_t counter_,
-    float set_long_accel_mps2_,
-    float set_limit_velocity_mps_,
-    float set_front_wheel_angle_rad_,
-//    float set_front_wheel_angle_rate_,
-    uint8_t door_,
-    uint8_t blinker_,
-    uint8_t headlight_,
-    uint8_t wiper_,
-    uint8_t gear_,
-    uint8_t mode_,
-    uint8_t hand_brake,
-    uint8_t takeover_request,
-    uint8_t rsv) :
+    uint32_t counter_, float set_long_accel_mps2_, float set_limit_velocity_mps_,
+    float set_front_wheel_angle_rad_, DoorStatus_ door_, uint8_t blinker_, uint8_t headlight_,
+    uint8_t wiper_, uint8_t gear_, uint8_t mode_, uint8_t hand_brake, uint8_t takeover_request)
+  :
 
-  frame_id1 {comp_to_llc_msg_frame_id},
-  frame_id2 {comp_to_llc_msg_frame_id},
-  reserved {0},
-  counter {counter_},
-  vehicle_control_cmd {set_long_accel_mps2_,
-    set_limit_velocity_mps_,
-    set_front_wheel_angle_rad_/*,
-    set_front_wheel_angle_rate_*/},
-  vehicle_state_cmd {door_, blinker_,
-    headlight_,
-    wiper_,
-    gear_,
-    mode_,
-    hand_brake,
-    takeover_request,
-    rsv},
-  crc {0},
-  eof_id1 {comp_to_llc_msg_eof_id},
-  eof_id2 {comp_to_llc_msg_eof_id}
+    frame_id1{comp_to_llc_msg_frame_id},
+    frame_id2{comp_to_llc_msg_frame_id},
+    reserved{0},
+    counter{counter_},
+    vehicle_control_cmd{set_long_accel_mps2_, set_limit_velocity_mps_, set_front_wheel_angle_rad_},
+    vehicle_state_cmd{blinker_, headlight_, wiper_,           gear_,
+                      mode_,    hand_brake, takeover_request, door_},
+    crc{0},
+    eof_id1{comp_to_llc_msg_eof_id},
+    eof_id2{comp_to_llc_msg_eof_id}
   {
     crc = crc_16(reinterpret_cast<const uint8_t *>(this), sizeof(CompToLlcData) - 4);
   }

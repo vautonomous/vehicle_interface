@@ -375,7 +375,7 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
   current_state.gear_report_msg.report = gear_adapter_to_autoware(received_data->state_report.gear);
   indicator_adapter_to_autoware(received_data->state_report.blinker);
   current_state.debug_str_last = received_data->state_report.debugstr;
-  current_state.door_status_msg = door_report_to_autoware(received_data->state_report.door);
+  current_state.door_status_msg = door_report_to_autoware(received_data->state_report.door_status);
 }
 
 void LeoVcuDriver::autoware_to_llc_msg_adapter()
@@ -400,10 +400,6 @@ void LeoVcuDriver::autoware_to_llc_msg_adapter()
   send_data.set_long_accel_mps2_ = control_cmd_ptr_->longitudinal.acceleration;
   send_data.set_front_wheel_angle_rad_ =
     steering_tire_to_steering_wheel_angle(control_cmd_ptr_->lateral.steering_tire_angle);
-  send_data.set_front_wheel_angle_rate_ = steering_tire_to_steering_wheel_angle(
-                                            control_cmd_ptr_->lateral.steering_tire_angle +
-                                            control_cmd_ptr_->lateral.steering_tire_rotation_rate) -
-                                          send_data.set_front_wheel_angle_rad_;
   control_mode_adapter_to_llc();
 }
 
@@ -602,7 +598,8 @@ void LeoVcuDriver::llc_publisher()
 
   if (!autoware_data_ready()) {
     RCLCPP_WARN_ONCE(get_logger(), "Data from Autoware is not ready!");
-    CompToLlcData serial_dt(send_data.counter_, 0.0, 0.0, 0.0, 0, 1, 1, 1, 1, 2, 0, 0, 0);
+    DoorStatus_ door = {0, 0};  // no cmd
+    CompToLlcData serial_dt(send_data.counter_, 0.0, 0.0, 0.0, door, 1, 1, 1, 1, 2, 0, 0);
 
     const auto serialData = pack_serial_data(serial_dt);
     serial->write(serialData);
@@ -701,19 +698,11 @@ void LeoVcuDriver::llc_publisher()
       std::max(send_data.set_front_wheel_angle_rad_, min_steering_wheel_angle));
   }
 
-  if (
-    (fabsf(send_data.set_front_wheel_angle_rate_) > max_steering_wheel_angle_rate) &&
-    check_steering_angle_rate) {
-    send_data.set_front_wheel_angle_rate_ = std::min(
-      max_steering_wheel_angle_rate,
-      std::max(send_data.set_front_wheel_angle_rate_, -max_steering_wheel_angle_rate));
-  }
-
   CompToLlcData serial_dt(
     send_data.counter_, send_data.set_long_accel_mps2_, send_data.set_limit_velocity_mps_,
     send_data.set_front_wheel_angle_rad_, send_data.door_, send_data.blinker_, send_data.headlight_,
     send_data.wiper_, send_data.gear_, send_data.mode_, send_data.hand_brake,
-    send_data.takeover_request, 0);
+    send_data.takeover_request);
   if (enable_debugger) {
     RCLCPP_INFO(
       get_logger(),
@@ -729,13 +718,13 @@ void LeoVcuDriver::llc_publisher()
   updater_.force_update();
 }
 
-tier4_api_msgs::msg::DoorStatus LeoVcuDriver::door_report_to_autoware(uint8_t & input)
+tier4_api_msgs::msg::DoorStatus LeoVcuDriver::door_report_to_autoware(DoorStatus_ & input)
 {
   tier4_api_msgs::msg::DoorStatus door_status;
-  if (input == 0) {
-    door_status.status = tier4_api_msgs::msg::DoorStatus::DOOR_CLOSED;
-  } else if (input == 1) {
+  if (input.front_door == 1 || input.rear_door == 1) {
     door_status.status = tier4_api_msgs::msg::DoorStatus::DOOR_OPENED;
+  } else if (input.front_door == 2 && input.rear_door == 2) {
+    door_status.status = tier4_api_msgs::msg::DoorStatus::DOOR_CLOSED;
   } else {
     door_status.status = tier4_api_msgs::msg::DoorStatus::UNKNOWN;
   }
@@ -996,11 +985,13 @@ void LeoVcuDriver::setDoor(
 
   if (request->open) {
     // open the door
-    send_data.door_ = 1;
+    send_data.door_.front_door = 1;
+    send_data.door_.rear_door = 1;
     response->status.message = "Success to open the door.";
   } else {
     // close the door
-    send_data.door_ = 0;
+    send_data.door_.front_door = 2;
+    send_data.door_.rear_door = 2;
     response->status.message = "Success to close the door.";
   }
 }

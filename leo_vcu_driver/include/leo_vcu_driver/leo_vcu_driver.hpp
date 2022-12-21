@@ -133,7 +133,7 @@ public:
   /**
    * @brief It converts the door status which is taken from LLC wrt Autoware Universe messages.
    */
-  tier4_api_msgs::msg::DoorStatus door_report_to_autoware(uint8_t & input);
+  tier4_api_msgs::msg::DoorStatus door_report_to_autoware(DoorStatus_ & input);
 
   /**
    * @brief It converts the gear data which is taken from LLC wrt Autoware Universe messages.
