@@ -34,8 +34,8 @@ const uint8_t llc_to_comp_msg_eof_id{100U};
 
 struct DoorStatus_
 {
-  uint8_t front_door;
-  uint8_t rear_door;
+  uint8_t front_door : 4;
+  uint8_t rear_door : 4;
 };
 struct vehicle_current_state_
 {
@@ -63,7 +63,6 @@ struct CompToLlcData_
   uint8_t mode_{};
   uint8_t hand_brake{0};
   uint8_t takeover_request{0};  // no takeover for 0, takeover for 1
-  uint8_t rsv{0};
   // Not used data: wiper, headlight, handbrake
   // Default values wiper = 1 (Off), headlight = 1 (Off), handbrake = 0 (not used in LLC)
 };
@@ -84,6 +83,7 @@ struct StateReport_
   uint8_t throttle;  // %
   uint8_t brake;     // %
   DoorStatus_ door_status;
+  uint8_t rsv;
   char debugstr[24];
 };
 
