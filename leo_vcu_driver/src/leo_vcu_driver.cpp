@@ -103,6 +103,8 @@ LeoVcuDriver::LeoVcuDriver()
   steering_wheel_status_pub_ =
     create_publisher<tier4_vehicle_msgs::msg::SteeringWheelStatusStamped>(
       "/vehicle/status/steering_wheel_status", 1);
+  door_status_pub_ =
+    create_publisher<tier4_api_msgs::msg::DoorStatus>("/vehicle/status/door_status", 1);
   llc_error_pub_ = create_publisher<std_msgs::msg::String>("/interface/status/llc_status", 1);
 
   // Services
@@ -308,6 +310,7 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
   }
 
   // Message adapter
+
   llc_to_autoware_msg_adapter(received_data);
 
   std_msgs::msg::Header header;

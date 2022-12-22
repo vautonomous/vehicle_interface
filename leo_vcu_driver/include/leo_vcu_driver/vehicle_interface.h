@@ -55,7 +55,7 @@ struct CompToLlcData_
   float set_long_accel_mps2_{};
   float set_limit_velocity_mps_{};
   float set_front_wheel_angle_rad_{};
-  DoorStatus_ door_;
+  DoorStatus_ door_{0,0};
   uint8_t blinker_{};
   uint8_t headlight_{1};
   uint8_t wiper_{1};
