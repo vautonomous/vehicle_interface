@@ -16,6 +16,7 @@ udevadm trigger
 chmod 777 /dev/ttyLLC
 
 cd ${HOME}/
+adduser $USER dialout
 
 #ls /dev/tty*
 #lsusb
