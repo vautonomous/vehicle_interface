@@ -968,8 +968,16 @@ void LeoVcuDriver::onAutowareState(
 
   if (message->state == AutowareState::DRIVING) {
     send_data.hand_brake = 0;
+    // close the door
+    send_data.door_.front_door = 2;
+    send_data.door_.rear_door = 2;
   } else {
     send_data.hand_brake = 1;
+    if(message->state == AutowareState::ARRIVED_GOAL) {
+      // open the door
+      send_data.door_.front_door = 1;
+      send_data.door_.rear_door = 1;
+    }
   }
 }
 
