@@ -69,7 +69,7 @@ LeoVcuDriver::LeoVcuDriver()
       "/system/emergency/hazard_lights_cmd", rclcpp::QoS{1},
       std::bind(&LeoVcuDriver::hazard_lights_cmd_callback, this, _1));
   engage_cmd_sub_ = create_subscription<autoware_auto_vehicle_msgs::msg::Engage>(
-    "/vehicle/engage", rclcpp::QoS{1}, std::bind(&LeoVcuDriver::engage_cmd_callback, this, _1));
+    "/api/autoware/get/engage", rclcpp::QoS{1}, std::bind(&LeoVcuDriver::engage_cmd_callback, this, _1));
   gate_mode_sub_ = create_subscription<tier4_control_msgs::msg::GateMode>(
     "/control/current_gate_mode", 1, std::bind(&LeoVcuDriver::gate_mode_cmd_callback, this, _1));
   emergency_sub_ = create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
