@@ -69,7 +69,8 @@ LeoVcuDriver::LeoVcuDriver()
       "/system/emergency/hazard_lights_cmd", rclcpp::QoS{1},
       std::bind(&LeoVcuDriver::hazard_lights_cmd_callback, this, _1));
   engage_cmd_sub_ = create_subscription<autoware_auto_vehicle_msgs::msg::Engage>(
-    "/api/autoware/get/engage", rclcpp::QoS{1}, std::bind(&LeoVcuDriver::engage_cmd_callback, this, _1));
+    "/api/autoware/get/engage", rclcpp::QoS{1},
+    std::bind(&LeoVcuDriver::engage_cmd_callback, this, _1));
   gate_mode_sub_ = create_subscription<tier4_control_msgs::msg::GateMode>(
     "/control/current_gate_mode", 1, std::bind(&LeoVcuDriver::gate_mode_cmd_callback, this, _1));
   emergency_sub_ = create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
@@ -701,6 +702,14 @@ void LeoVcuDriver::llc_publisher()
       std::max(send_data.set_front_wheel_angle_rad_, min_steering_wheel_angle));
   }
 
+  if (
+    current_state.door_status_msg.status != tier4_api_msgs::msg::DoorStatus::DOOR_CLOSED ||
+    door_closing_counter < 3 * loop_rate_) {
+    send_data.set_long_accel_mps2_ = -1.5;
+    if (current_state.door_status_msg.status != tier4_api_msgs::msg::DoorStatus::DOOR_CLOSED) {
+      door_closing_counter = 0;
+    }
+  }
   CompToLlcData serial_dt(
     send_data.counter_, send_data.set_long_accel_mps2_, send_data.set_limit_velocity_mps_,
     send_data.set_front_wheel_angle_rad_, send_data.door_, send_data.blinker_, send_data.headlight_,
@@ -717,7 +726,7 @@ void LeoVcuDriver::llc_publisher()
   const auto serialData = pack_serial_data(serial_dt);
   serial->write(serialData);
   send_data.counter_++;
-
+  door_closing_counter++;
   updater_.force_update();
 }
 
@@ -971,12 +980,14 @@ void LeoVcuDriver::onAutowareState(
     // close the door
     send_data.door_.front_door = 2;
     send_data.door_.rear_door = 2;
-  }
-  if(message->state == AutowareState::ARRIVED_GOAL) {
-      send_data.hand_brake = 1;
-      // open the door
-      send_data.door_.front_door = 1;
-      send_data.door_.rear_door = 1;
+  } else if (message->state == AutowareState::ARRIVED_GOAL) {
+    send_data.hand_brake = 1;
+    // open the door
+    send_data.door_.front_door = 1;
+    send_data.door_.rear_door = 1;
+  } else {
+    send_data.door_.front_door = 0;
+    send_data.door_.rear_door = 0;
   }
 }
 
