@@ -46,6 +46,7 @@ struct vehicle_current_state_
   autoware_auto_vehicle_msgs::msg::GearReport gear_report_msg;
   autoware_auto_vehicle_msgs::msg::TurnIndicatorsReport turn_msg;
   autoware_auto_vehicle_msgs::msg::HazardLightsReport hazard_msg;
+  tier4_vehicle_msgs::msg::BatteryStatus battery_status_msg;
   tier4_api_msgs::msg::DoorStatus door_status_msg;
   char * debug_str_last{};
 };

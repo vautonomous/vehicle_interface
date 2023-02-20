@@ -25,13 +25,13 @@
 #include <experimental/optional>
 #include <leo_vcu_driver/visibility_control.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <vehicle_info_util/vehicle_info_util.hpp>
 #include <tier4_api_utils/tier4_api_utils.hpp>
+#include <vehicle_info_util/vehicle_info_util.hpp>
 
 #include <autoware_auto_control_msgs/msg/ackermann_control_command.hpp>
+#include <autoware_auto_system_msgs/msg/autoware_state.hpp>
 #include <autoware_auto_system_msgs/msg/emergency_state.hpp>
 #include <autoware_auto_system_msgs/msg/hazard_status_stamped.hpp>
-#include <autoware_auto_system_msgs/msg/autoware_state.hpp>
 #include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
 #include <autoware_auto_vehicle_msgs/msg/engage.hpp>
 #include <autoware_auto_vehicle_msgs/msg/gear_command.hpp>
@@ -44,14 +44,14 @@
 #include <autoware_auto_vehicle_msgs/msg/velocity_report.hpp>
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <tier4_api_msgs/msg/door_status.hpp>
 #include <tier4_control_msgs/msg/gate_mode.hpp>
+#include <tier4_external_api_msgs/srv/set_door.hpp>
 #include <tier4_vehicle_msgs/msg/actuation_command_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/actuation_status_stamped.hpp>
+#include <tier4_vehicle_msgs/msg/battery_status.hpp>
 #include <tier4_vehicle_msgs/msg/steering_wheel_status_stamped.hpp>
 #include <tier4_vehicle_msgs/msg/vehicle_emergency_stamped.hpp>
-#include <tier4_api_msgs/msg/door_status.hpp>
-#include <tier4_external_api_msgs/srv/set_door.hpp>
-
 
 #include <leo_vcu_driver/AsyncSerial.h>
 #include <leo_vcu_driver/checksum.h>
@@ -291,7 +291,8 @@ private:
     emergency_state_sub_;
   rclcpp::Subscription<autoware_auto_system_msgs::msg::HazardStatusStamped>::SharedPtr
     sub_hazard_status_stamped_;
-  rclcpp::Subscription<autoware_auto_system_msgs::msg::AutowareState>::ConstSharedPtr autoware_state_sub_;
+  rclcpp::Subscription<autoware_auto_system_msgs::msg::AutowareState>::ConstSharedPtr
+    autoware_state_sub_;
 
   /* publishers */
 
@@ -299,6 +300,7 @@ private:
   rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::ControlModeReport>::SharedPtr
     control_mode_pub_;
   rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::VelocityReport>::SharedPtr vehicle_twist_pub_;
+  rclcpp::Publisher<tier4_vehicle_msgs::msg::BatteryStatus>::SharedPtr vehicle_battery_status_pub_;
   rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::SteeringReport>::SharedPtr
     steering_status_pub_;
   rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::GearReport>::SharedPtr gear_status_pub_;

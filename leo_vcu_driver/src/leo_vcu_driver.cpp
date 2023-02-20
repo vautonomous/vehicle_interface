@@ -92,6 +92,8 @@ LeoVcuDriver::LeoVcuDriver()
     "/vehicle/status/control_mode", rclcpp::QoS{1});
   vehicle_twist_pub_ = create_publisher<autoware_auto_vehicle_msgs::msg::VelocityReport>(
     "/vehicle/status/velocity_status", rclcpp::QoS{1});
+  vehicle_battery_status_pub_ = create_publisher<tier4_vehicle_msgs::msg::BatteryStatus>(
+    "/vehicle/status/battery_charge", rclcpp::QoS{1});
   steering_status_pub_ = create_publisher<autoware_auto_vehicle_msgs::msg::SteeringReport>(
     "/vehicle/status/steering_status", rclcpp::QoS{1});
   gear_status_pub_ = create_publisher<autoware_auto_vehicle_msgs::msg::GearReport>(
@@ -357,8 +359,12 @@ void LeoVcuDriver::serial_receive_callback(const char * data, unsigned int len)
   }
   /* publish current door status */
   {
-    // TODO: check the door status variables again
     door_status_pub_->publish(current_state.door_status_msg);
+  }
+  /* publish battery level */
+  {
+    current_state.battery_status_msg.stamp = header.stamp;
+    vehicle_battery_status_pub_->publish(current_state.battery_status_msg);
   }
 }
 
@@ -380,6 +386,7 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
   indicator_adapter_to_autoware(received_data->state_report.blinker);
   current_state.debug_str_last = received_data->state_report.debugstr;
   current_state.door_status_msg = door_report_to_autoware(received_data->state_report.door_status);
+  current_state.battery_status_msg.energy_level = static_cast<float>(received_data->state_report.fuel);
 }
 
 void LeoVcuDriver::autoware_to_llc_msg_adapter()
