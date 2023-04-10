@@ -386,7 +386,8 @@ void LeoVcuDriver::llc_to_autoware_msg_adapter(
   indicator_adapter_to_autoware(received_data->state_report.blinker);
   current_state.debug_str_last = received_data->state_report.debugstr;
   current_state.door_status_msg = door_report_to_autoware(received_data->state_report.door_status);
-  current_state.battery_status_msg.energy_level = static_cast<float>(received_data->state_report.fuel);
+  current_state.battery_status_msg.energy_level =
+    static_cast<float>(received_data->state_report.fuel);
 }
 
 void LeoVcuDriver::autoware_to_llc_msg_adapter()
@@ -753,6 +754,11 @@ tier4_api_msgs::msg::DoorStatus LeoVcuDriver::door_report_to_autoware(DoorStatus
 
 void LeoVcuDriver::indicator_adapter_to_llc()
 {
+  // If vehicle is not in drive mode, send hazard lights command
+  if (autoware_state_ptr_.get()->state != autoware_auto_system_msgs::msg::AutowareState::DRIVING) {
+    send_data.blinker_ = 4;
+    return;
+  }
   /* send turn and hazard commad */
 
   if (
@@ -839,6 +845,10 @@ bool LeoVcuDriver::autoware_data_ready()
   }
   if (!gate_mode_cmd_ptr) {
     RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for gate_mode_cmd ...");
+    output = false;
+  }
+  if (!autoware_state_ptr_) {
+    RCLCPP_WARN_THROTTLE(get_logger(), clock, 1000, "waiting for autoware_state ...");
     output = false;
   }
 
@@ -981,6 +991,7 @@ void LeoVcuDriver::onAutowareState(
   const autoware_auto_system_msgs::msg::AutowareState::SharedPtr message)
 {
   using autoware_auto_system_msgs::msg::AutowareState;
+  autoware_state_ptr_ = message;
 
   if (message->state == AutowareState::DRIVING) {
     send_data.hand_brake = 0;

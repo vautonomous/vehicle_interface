@@ -250,6 +250,7 @@ private:
   autoware_auto_vehicle_msgs::msg::GearCommand::ConstSharedPtr gear_cmd_ptr_;
   tier4_vehicle_msgs::msg::VehicleEmergencyStamped::ConstSharedPtr emergency_cmd_ptr;
   tier4_control_msgs::msg::GateMode::ConstSharedPtr gate_mode_cmd_ptr;
+  autoware_auto_system_msgs::msg::AutowareState::ConstSharedPtr autoware_state_ptr_;
 
   bool engage_cmd_{0};
 
