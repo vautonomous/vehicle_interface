@@ -716,6 +716,18 @@ void LeoVcuDriver::llc_publisher()
     send_data.set_long_accel_mps2_ = -1.5;
     if (current_state.door_status_msg.status != tier4_api_msgs::msg::DoorStatus::DOOR_CLOSED) {
       door_closing_counter = 0;
+    } else {
+      move_from_station = true;
+    }
+  }
+
+  if (
+    move_from_station &&
+    autoware_state_ptr_->state == autoware_auto_system_msgs::msg::AutowareState::DRIVING) {
+    if (current_state.twist.longitudinal_velocity < 0.5) {
+      send_data.blinker_ = 2;
+    } else {
+      move_from_station = false;
     }
   }
   CompToLlcData serial_dt(

@@ -257,7 +257,7 @@ private:
   /* Variables */
   rclcpp::Time control_command_received_time_;
   autoware_auto_system_msgs::msg::HazardStatusStamped::ConstSharedPtr hazard_status_stamped_;
-
+  bool move_from_station{false};
   // Current state of vehicle (Got from LLC)
 
   vehicle_current_state_ current_state;
